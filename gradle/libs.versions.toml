@@ -91,6 +91,10 @@ workmanager = { group = "androidx.work", name = "work-runtime-ktx", version.ref 
 hiltWork = { group = "androidx.hilt", name = "hilt-work", version = "1.2.0" }
 coil = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
 coil-network = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil" }
+# vc70：coil-compose 的 POM 把 coil-core 声明为 runtime 作用域 —— ImageRequest 等核心 API
+# 默认不在编译类路径上。本 artifact 早已在运行时就近类路径中（零 APK 增量），
+# 显式声明仅为让「壁纸按屏幕尺寸降采样」的 ImageRequest 编译期可见。
+coil-core = { group = "io.coil-kt.coil3", name = "coil-core", version.ref = "coil" }
 calendar-compose = { group = "com.kizitonwose.calendar", name = "compose", version.ref = "calendar" }
 vico-compose-m3 = { group = "com.patrykandpatrick.vico", name = "compose-m3", version.ref = "vico" }
 reorderable = { group = "sh.calvin.reorderable", name = "reorderable-android", version.ref = "reorderable" }

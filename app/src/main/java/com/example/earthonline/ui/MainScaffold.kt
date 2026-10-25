@@ -51,6 +51,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 import androidx.compose.ui.unit.sp
 import com.example.earthonline.ui.theme.AmberPrimary
 import com.example.earthonline.ui.theme.GlassSpring
@@ -63,6 +64,8 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.size.Precision
 import com.example.earthonline.ui.achievements.AchievementUnlockHost
 import com.example.earthonline.ui.achievements.AchievementViewModel
 import com.example.earthonline.ui.components.MoreMenuActions
@@ -171,13 +174,24 @@ fun MainScaffold(
     val screenH = configuration.screenHeightDp
     // v1.0.19：壁纸不透明度 0% = 完全隐藏 —— 不解码、不渲染、不供玻璃采样，纯背景色接管
     val wallpaperVisible = wallpaperAlpha > 0.01f && effectiveWallpaper.isNotBlank()
-    val wallpaperRequest = remember(effectiveWallpaper, screenW, screenH, wallpaperVisible) {
+    // vc70：屏幕像素尺寸（dp × density）—— 壁纸解码的硬上限
+    val screenWPx = (screenW * density.density).roundToInt()
+    val screenHPx = (screenH * density.density).roundToInt()
+    val wallpaperRequest = remember(effectiveWallpaper, screenWPx, screenHPx, wallpaperVisible) {
         if (!wallpaperVisible) {
             null
         } else {
-            // v2.0.0（Coil 3）：全屏壁纸直接传 File，由 Coil 3 按控件约束采样；
-            // 不再手写 ImageRequest（Coil 3 的 size/precision 签名与 2.x 不同源）。
-            File(effectiveWallpaper)
+            /* vc70（壁纸降采样·死命令）：显式 ImageRequest —— 绝不让 12MP 原图
+               直接上 GPU。size(屏幕像素) + precision(INEXACT) 双保险：
+               解码结果最大就是一块屏幕大（≈1080×2400），
+               相比原图显存占用降一个数量级，Haze 每张卡的采样带宽随之暴降。
+               （此前只传 File、依赖 Coil 隐式推断约束，屏幕旋转 / 折叠屏展开时
+               约束推断会给出超屏尺寸，且没有 precision 约束。） */
+            ImageRequest.Builder(context)
+                .data(File(effectiveWallpaper))
+                .size(screenWPx, screenHPx)
+                .precision(Precision.INEXACT)
+                .build()
         }
     }
 

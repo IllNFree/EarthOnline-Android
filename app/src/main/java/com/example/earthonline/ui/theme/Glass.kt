@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.earthonline.ui.components.UiDimens
 import com.example.earthonline.ui.components.bouncyClickable
+import dev.chrisbanes.haze.HazeInputScale
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.HazeTint
@@ -97,8 +98,13 @@ const val CARD_OPAQUE_THRESHOLD = 0.995f
  */
 val LocalLiquidGlass = compositionLocalOf { true }
 
-/** Haze 满档模糊半径（dp）。滚动时按 [LocalHazeBlurScale] 线性下调。 */
-val GLASS_BLUR_RADIUS_DP: Dp = 22.dp
+/**
+ * Haze 满档模糊半径（dp）。滚动时按 [LocalHazeBlurScale] 线性下调。
+ *
+ * vc70（GPU 调优）：22dp → **20dp**。20dp 已是液态玻璃质感的最佳区间
+ * （16~20dp），再往上 GPU 模糊开销近似线性/超线性增长而视觉增益极小。
+ */
+val GLASS_BLUR_RADIUS_DP: Dp = 20.dp
 
 /** Haze 噪声强度（0~1）。极轻，只用来打散色带，避免出现「塑料膜」感。 */
 private const val GLASS_NOISE_FACTOR = 0.06f
@@ -189,6 +195,13 @@ fun GlassSurface(
                 blurEnabled = blurOn
                 blurRadius = blurRadiusDp
                 noiseFactor = GLASS_NOISE_FACTOR
+                /* vc70（有壁纸才卡的 GPU 根因·死命令）：Haze 1.3.1 的 inputScale
+                   默认是 None —— 每张卡都对**全分辨率**壁纸纹理做高斯，
+                   一张 12MP 壁纸 × 屏幕上 6~7 张玻璃卡 = 每帧数亿次纹理采样。
+                   Auto 档在半径 ≥ 7dp 时自动把模糊输入降到 1/3 分辨率
+                   （待模糊像素量直接降 9 倍），毛玻璃观感无损（模糊本身就
+                   抹掉细节），这是「不降特效、只降算力」的关键一刀。 */
+                inputScale = HazeInputScale.Auto
                 backgroundColor = Color.Transparent
                 tints = listOf(
                     HazeTint(color = Color.White.copy(alpha = 0.30f)),

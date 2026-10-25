@@ -228,7 +228,18 @@ android {
         //    AchievementViewModel（54 条 toUi + 分类统计）加 flowOn(Dispatchers.Default)，
         //    映射全部搬离主线程；GlassSurface 离屏渲染 / LazyColumn key+contentType / 滚动方向
         //    derivedStateOf 只读进 graphicsLayer 均为既有项，本轮复核确认无回退
-        versionCode = 69
+        // versionCode 70 = v2.0.0（壁纸 GPU 采样过载根治批 vc70）：
+        // ① 壁纸降采样（治本）：MainScaffold 改显式 ImageRequest（size=屏幕像素 +
+        //    Precision.INEXACT），12MP 原图绝不上 GPU，解码位图恒 ≤ 一块屏幕
+        // ② Haze 输入降采样（核心）：GlassSurface 的 hazeEffect 显式设置
+        //    inputScale = HazeInputScale.Auto —— 库默认是 None（全分辨率模糊），
+        //    Auto 在半径 ≥7dp 时把模糊输入降到 1/3，待模糊像素量降 9 倍，观感无损
+        // ③ 模糊半径 22dp → 20dp（液态玻璃最佳区间 16~20dp 的上限）
+        // ④ 离屏缓存复核：hazeSource 内部已用 GraphicsLayer 缓冲、每张玻璃卡根链已挂
+        //    compositingStrategy = Offscreen —— 缓存层级本就正确，未加冗余全屏层
+        //    （那会白增一块全屏离屏缓冲 + 每帧一次全屏合成，反而更卡）
+        // ⑤ 过度绘制审计：卡片均为单层玻璃，内部仅小型徽章填充，无冗余全幅半透明叠层
+        versionCode = 70
         versionName = "2.0.0"
         vectorDrawables { useSupportLibrary = true }
         // 高德 SDK 需要原生 so 库，按需裁剪 ABI（阶段3 接入地图前可放行全部）
@@ -345,6 +356,8 @@ dependencies {
     // v2.0.0：图片加载统一 Coil 3（coil3.* 包名）+ OkHttp 网络取图（Steam 封面等远端图）
     implementation(libs.coil)
     implementation(libs.coil.network)
+    // vc70：壁纸降采样需要手写 ImageRequest（coil-core 的 API，POM 里是 runtime 作用域）
+    implementation(libs.coil.core)
     // v2.0.0：java.time 脱糖（Calendar 库前置条件）
     coreLibraryDesugaring(libs.desugar.jdk.libs)
 

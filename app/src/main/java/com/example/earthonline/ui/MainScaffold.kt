@@ -43,7 +43,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.shadow
@@ -365,14 +364,12 @@ fun MainScaffold(
                     .fillMaxSize()
                     .widthIn(max = 560.dp)
                     .align(Alignment.TopCenter)
-                    // vc71（死命令·致命点3 根治）：**全站唯一的 GPU 离屏缓冲挂在这里（内容根）**。
-                    // 此前每张 GlassSurface 各自开一张离屏层 —— 主页一挂壁纸就有 6~7 张玻璃卡同屏，
-                    // 每帧 6~7 次离屏渲染 + 6~7 张常驻纹理，显存/带宽被卡片数线性拖垮，
-                    // 正是「有壁纸才卡」的真凶（Glass.kt 已移除每卡离屏）。
-                    // 现在全站所有玻璃（主页/任务/背包/…）共享这一张全屏离屏层，
-                    // 渲染通道从 N 张收敛到 1 张；Haze 采样源仍是 MainScaffold 的静态壁纸层
-                    // （本节点是其同级兄弟，离屏化不影响采样），模糊观感 100% 无损。
-                    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                    // vc72（渲染生命周期根治·闪烁）：**不再在内容根挂 Offscreen 离屏层**。
+                    // 上一版（vc71）把唯一离屏层挂在这里，包裹着主页 LazyColumn —— 整棵子树被压进
+                    // 一张全屏离屏缓冲，LazyColumn 的 Item 回收会反复令该层失效并重绘，
+                    // 滑出再滑回即触发「卡片闪白」。Haze 自身已用 hazeSource 图层负责背景合成，
+                    // 列表卡片彼此不重叠、本就无需离屏隔离，故彻底移除 Offscreen，
+                    // 把合成交还系统正常图层管理，闪烁根因直接消除（满血玻璃观感不变）。
                     .padding(bottom = contentBottomPad),
                 achVm = achVm,
                 moreActions = MoreMenuActions(

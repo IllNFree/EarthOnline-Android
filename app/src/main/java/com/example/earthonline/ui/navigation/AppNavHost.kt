@@ -4,9 +4,7 @@ import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.spring
 import androidx.compose.runtime.Composable
@@ -105,36 +103,39 @@ fun AppNavHost(
         navController = navController,
         startDestination = startDestination,
         modifier = modifier,
-        /* 转场规范（v1.0.6.9 死命令：全局统一弹簧阻尼）：
-           - Tab 间切换：淡入 + 极轻微垂直位移（交叉淡变，翻页不抢眼）；
-           - 进入 / 返回二级页：从右侧推入 / 平滑推出（标准栈式位移，推满整屏）。
-           四向全部走同一 spring 规格（damping 0.92 / MediumLow），杜绝各向速度不一致的割裂感。 */
+        /* 转场规范（vc72 优化·转场卡顿根治）：
+           - Tab 间切换：淡入 + 极轻微垂直位移（交叉淡变，翻页不抢眼，保持原手感）；
+           - 进入 / 返回二级页：纯淡入淡出（fade）—— 退到后台的主页满载 Haze 模糊，
+             若整屏横移重栅格化会触发双倍 GPU 导致转场卡顿；纯淡出只做 alpha 合成，
+             主页模糊层算一次即复用，转场丝滑。四向仍走同一 spring 规格（damping 0.92 / MediumLow）。 */
         enterTransition = {
             if (initialState.destination.route in TAB_ROUTES && targetState.destination.route in TAB_ROUTES) {
                 fadeIn(navSpringFloat()) + slideInVertically(navSpringOffset()) { it / 12 }
             } else {
-                fadeIn(navSpringFloat()) + slideInHorizontally(navSpringOffset()) { it }
+                // vc72（转场优化）：二级页入栈走纯淡入 —— 退到后台的主页（满载 Haze 模糊）
+                // 不再被整屏横移重栅格化（双倍 GPU），只做 alpha 合成，转场卡顿消除。
+                fadeIn(navSpringFloat())
             }
         },
         exitTransition = {
             if (initialState.destination.route in TAB_ROUTES && targetState.destination.route in TAB_ROUTES) {
                 fadeOut(navSpringFloat()) + slideOutVertically(navSpringOffset()) { -it / 12 }
             } else {
-                fadeOut(navSpringFloat()) + slideOutHorizontally(navSpringOffset()) { -it }
+                fadeOut(navSpringFloat())
             }
         },
         popEnterTransition = {
             if (initialState.destination.route in TAB_ROUTES && targetState.destination.route in TAB_ROUTES) {
                 fadeIn(navSpringFloat()) + slideInVertically(navSpringOffset()) { -it / 12 }
             } else {
-                fadeIn(navSpringFloat()) + slideInHorizontally(navSpringOffset()) { -it }
+                fadeIn(navSpringFloat())
             }
         },
         popExitTransition = {
             if (initialState.destination.route in TAB_ROUTES && targetState.destination.route in TAB_ROUTES) {
                 fadeOut(navSpringFloat()) + slideOutVertically(navSpringOffset()) { it / 12 }
             } else {
-                fadeOut(navSpringFloat()) + slideOutHorizontally(navSpringOffset()) { it }
+                fadeOut(navSpringFloat())
             }
         }
     ) {

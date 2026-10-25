@@ -1,5 +1,6 @@
 package com.example.earthonline.ui.home
 
+import androidx.compose.runtime.Immutable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Backpack
 import androidx.compose.material.icons.rounded.Checklist
@@ -105,6 +106,7 @@ data class SearchHit(
  * 所有派生量（完成率、等级、签名标签、时间轴）都在 ViewModel 里算好，
  * 组合阶段只做渲染，不做解析、排序、JSON 解码。
  */
+@Immutable
 data class HomeUiState(
     val loaded: Boolean = false,
     val name: String = "",

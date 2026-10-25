@@ -232,6 +232,10 @@ android {
         // versionCode 71 = v2.0.0（主页卡顿终极根治批 vc71）：每卡离屏缓冲上移到全站唯一内容根
         //   （渲染通道从 N 张收敛到 1 张，GPU 吞吐根因拔除）+ 二级页 Tab 取消独立背景与标题同玻璃
         //   + 动画/复用/采样源审计确认无需降级视觉
+        // versionCode 72 = v2.0.0（渲染生命周期根治批 vc72）：移除内容根 Offscreen（vc71 把唯一离屏层挂在
+        //   包裹主页 LazyColumn 的内容根，Item 回收令整层失效重绘、滑回闪白——现移除，卡片闪烁消除）；
+        //   二级页转场纯淡入淡出（退出主页不再整屏横移重栅格化 Haze 模糊，转场卡顿消除）；
+        //   主页 State 加 @Immutable（HomeUiState 含 ByteArray 被判不稳定致全树反复重组，标注后仅数据变更才重组）
         // ① 壁纸降采样（治本）：MainScaffold 改显式 ImageRequest（size=屏幕像素 +
         //    Precision.INEXACT），12MP 原图绝不上 GPU，解码位图恒 ≤ 一块屏幕
         // ② Haze 输入降采样（核心）：GlassSurface 的 hazeEffect 显式设置
@@ -242,7 +246,16 @@ android {
         //    compositingStrategy = Offscreen —— 缓存层级本就正确，未加冗余全屏层
         //    （那会白增一块全屏离屏缓冲 + 每帧一次全屏合成，反而更卡）
         // ⑤ 过度绘制审计：卡片均为单层玻璃，内部仅小型徽章填充，无冗余全幅半透明叠层
-        versionCode = 71
+        // versionCode 73 = v2.0.0（速览网格统一重构批 vc73）：
+        // ① 废弃「default 6 格固定 Row 网格 + moreEntries 展开区 FlowRow」双结构 —— 两布局材质 / 对齐 / 间隙不一致
+        //   正是「系统/日常/Todo 三图标无图标+灰底块+巨大断裂」的视觉错乱根因；现全部入口进同一有序数据源
+        //   （state.entryOrder 严格排序，越界剔除、缺失补末尾），统一渲染为单一 FlowRow 网格，材质 / 圆角 / Haze / 间隙完全一致，无断层灰块。
+        // ② 拖拽排序范围根治：ReorderableLazyGrid（SortableEntryGrid）现覆盖 **全部** 入口（含游戏库 / 相册 / 系统 / 记账等），
+        //   不再只挂「最下面 6 个」—— 进入排序态长按任意瓦片均可拖动全序列。
+        // ③ 顺序与位置异常排查：严格按用户自定义 List 渲染，收起态 take(6) 与展开态 drop(6) 同一套瓦片 / 跳转逻辑，
+        //   排序态隐藏收起网格避免与排序网格重复首 6 项，防硬编码位置索引越界 / 渲染错乱。
+        // ④ 满血液态玻璃视觉零降级（不关特效）。
+        versionCode = 73
         versionName = "2.0.0"
         vectorDrawables { useSupportLibrary = true }
         // 高德 SDK 需要原生 so 库，按需裁剪 ABI（阶段3 接入地图前可放行全部）

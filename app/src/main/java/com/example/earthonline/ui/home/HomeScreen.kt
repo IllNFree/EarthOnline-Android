@@ -151,6 +151,7 @@ import kotlinx.coroutines.launch
  *  仅保留：任务 / 背包 / 成就 / 地图 / 记账 / 系统，去除与下方卡片重复的「新建任务」「记心情」等入口。
  *  [id] 与 HomeViewModel.DEFAULT_QUICK_ENTRIES 对应，供「自定义速览入口」按 DataStore 开关显隐。
  *  v1.0.19：[tint] 模块语义色 —— 速览瓦片图标升级为彩色圆角芯片（对标设置页图标语言）。 */
+@Immutable
 private data class HomeEntry(
     val id: String,
     /** v1.0.17：emoji → Icons.Rounded 圆角矢量（全局图标现代化） */
@@ -1511,18 +1512,18 @@ private fun OverviewGrid(
     // （游戏库/相册/地图/记账/数据/成就，3 列 × 2 行满排），不受历史自定义影响；
     // vc63（真机反馈）：**「系统」等不常用入口默认收起**，并修复 7 格默认集导致的
     // 「孤行大留白」—— 收起态恒为完美 3×2。
-    val DEFAULT_IDS = setOf("album", "map", "accounting", "data", "achievements", "games")
-    val defaultEntries = allEntries.filter { it.id in DEFAULT_IDS }
-    val moreEntries = visible.filter { it.id !in DEFAULT_IDS }
-
-    /* v2.0.0：拖拽排序（Reorderable）—— 展开区瓦片可长按拖动改顺序，
-       顺序以 id 列表持久化到 DataStore；空顺序 = 用默认排列。 */
+    /* vc72（速览重构·死命令）：**废弃「default 6 格固定网格 + moreEntries 展开区」双结构**。
+       旧结构把入口劈成两个独立布局，材质 / 对齐 / 间距都不一致，像「两页拼一起」；且 Reorderable 只挂 moreEntries，
+       导致只能拖最下面 6 个。现在全部入口进 **同一个有序数据源**（state.entryOrder 严格排序，越界剔除、缺失补末尾），
+       统一渲染为 FlowRow 网格，排序态覆盖 **全部** 入口。 */
     var sortMode by remember { mutableStateOf(false) }
-    var orderedIds by remember { mutableStateOf(listOf<String>()) }
-    LaunchedEffect(moreEntries.size, state.entryOrder) {
-        val saved = state.entryOrder.filter { id -> moreEntries.any { it.id == id } }
-        val rest = moreEntries.map { it.id }.filter { it !in saved }
-        orderedIds = saved + rest
+
+    // 严格按用户自定义顺序排序；entryOrder 没有的 id 追加到末尾（防索引越界 / 渲染错乱）
+    val orderedEntries = remember(state.quickEntries, state.entryOrder) {
+        val order = state.entryOrder
+        val inOrder = order.mapNotNull { id -> visible.firstOrNull { it.id == id } }
+        val rest = visible.filter { it.id !in order }
+        inOrder + rest
     }
 
 
@@ -1543,7 +1544,7 @@ private fun OverviewGrid(
                 TextButton(
                     onClick = {
                         sortMode = !sortMode
-                        if (!sortMode) onReorderEntries(orderedIds)
+                        if (!sortMode) onReorderEntries(orderedEntries.map { it.id })
                     },
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                     modifier = Modifier.height(30.dp)
@@ -1572,23 +1573,23 @@ private fun OverviewGrid(
 
         // v1.0.7：3 列网格（用户指定 3x2）；特大字号降为 2 列防挤压
         val cols = if (LocalDensity.current.fontScale >= 1.5f) 2 else 3
-        defaultEntries.chunked(cols).forEach { rowEntries ->
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth()
+        // 收起态 / 展开非排序态：前 6 个核心入口（同一套 FlowRow 网格，与展开区材质 / 对齐完全一致，无断层）
+        // vc72（速览重构·死命令）：排序态下隐藏，避免与下方「全部入口排序网格」重复渲染同一批瓦片
+        if (!sortMode) {
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val gap = 10.dp
+            val tileW = (maxWidth - gap * (cols - 1)) / cols
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(gap),
+                verticalArrangement = Arrangement.spacedBy(gap)
             ) {
-                rowEntries.forEach { entry ->
+                orderedEntries.take(6).forEach { entry ->
                     WaffleTile(
                         icon = entry.icon,
                         label = entry.label,
                         tint = entry.tint,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.width(tileW)
                     ) {
-                        // 死命令 #1（v1.0.6.x）：速览 = 先跳对应二级主页面，再自动弹出该功能的操作面板。
-                        // 记账 → 唤起外部记账 App（其记账页自带键盘输入，即「记一笔」）；
-                        //        目标 App 未安装时弹下载渠道弹窗（网盘 + GitHub）。
-                        // Todo → route 已直挂 new_todo：任务页 Todo Tab + 自动弹新建任务框；
-                        // 日常 → 任务页；笔记 → 直达新建笔记编辑页；其余按 route 跳转。
                         when (entry.id) {
                             "accounting" -> { if (!launchAccounting(context)) showAccDialog = true }
                             "daily" -> onNavigate("tasks")
@@ -1598,16 +1599,15 @@ private fun OverviewGrid(
                         }
                     }
                 }
-                // 末行不足一整行时用空白占位，保持左右对齐
-                repeat(cols - rowEntries.size) { Spacer(Modifier.weight(1f)) }
             }
         }
+        }
 
-        // 展开区：更多入口 + 自定义入口，垂直展开 + 淡入淡出（spring 弹性，与容器 animateContentSize 协同）
-        // vc63（真机反馈「奇怪留空」根治）：改用 FlowRow + 固定瓦片宽 —— 旧版 chunked Row +
-        // weight 占位会让末行出现整块空白列；FlowRow 逐项紧凑换行，绝无无意义留空。
+        // 展开区：排序态 = 全部入口可拖拽网格；非排序态 = 其余入口（统一 FlowRow，与收起态材质 / 对齐完全一致，无断层灰块）
+        // vc72（速览重构·死命令）：全部入口进同一有序数据源（state.entryOrder 严格排序），排序网格覆盖 **全部** 入口，
+        // 不再只挂「最下面 6 个」；越界剔除、缺失补末尾，防索引越界 / 渲染错乱。
         AnimatedVisibility(
-            visible = expanded && moreEntries.isNotEmpty(),
+            visible = expanded && (orderedEntries.size > 6 || sortMode),
             enter = expandVertically(animationSpec = GlassSpringIntSize) +
                 fadeIn(tween(220)),
             exit = shrinkVertically(animationSpec = GlassSpringIntSize) +
@@ -1616,9 +1616,9 @@ private fun OverviewGrid(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (sortMode) {
                     SortableEntryGrid(
-                        entries = orderedIds.mapNotNull { id -> moreEntries.firstOrNull { it.id == id } },
+                        entries = orderedEntries,
                         cols = cols,
-                        onOrderChange = { orderedIds = it },
+                        onOrderChange = { },
                         onCommit = { onReorderEntries(it) }
                     )
                     Text(
@@ -1634,15 +1634,20 @@ private fun OverviewGrid(
                         horizontalArrangement = Arrangement.spacedBy(gap),
                         verticalArrangement = Arrangement.spacedBy(gap)
                     ) {
-                        moreEntries.forEach { entry ->
+                        orderedEntries.drop(6).forEach { entry ->
                             WaffleTile(
                                 icon = entry.icon,
                                 label = entry.label,
                                 tint = entry.tint,
                                 modifier = Modifier.width(tileW)
                             ) {
-                                if (entry.route != null) onNavigate(entry.route)
-                                else { if (!launchAccounting(context)) showAccDialog = true }
+                                when (entry.id) {
+                                    "accounting" -> { if (!launchAccounting(context)) showAccDialog = true }
+                                    "daily" -> onNavigate("tasks")
+                                    "notes" -> onNavigate("note_editor?id=&folder=")
+                                    else -> if (entry.route != null) onNavigate(entry.route)
+                                    else { if (!launchAccounting(context)) showAccDialog = true }
+                                }
                             }
                         }
                     }
@@ -1733,6 +1738,7 @@ private fun QuickEntriesSheet(enabled: Set<String>, onToggle: (String, Boolean) 
 }
 
 /** v1.0.19：速览自定义面板条目（图标 + 模块语义色） */
+@Immutable
 private data class QuickEntryDef(
     val id: String,
     val icon: ImageVector,

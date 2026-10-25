@@ -1202,7 +1202,7 @@ private fun ActsFeedPure(
 ) {
     val filtered = allActs.filter { it.kind in feedKinds || it.kind == "custom" }
     val shown = if (feedLimit > 0) filtered.take(feedLimit) else filtered.take(10)
-    GlassCard(modifier = Modifier.fillMaxWidth()) {
+    Column(modifier = Modifier.fillMaxWidth()) {
         Column(
             Modifier.padding(UiDimens.CardPad),
             verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -1295,7 +1295,7 @@ private fun CalendarCardPure(tasks: List<TaskEntity>) {
         if (k.isBlank()) emptyList() else tasks.filter { it.dueDate?.take(10) == k }
     }
 
-    GlassCard(modifier = Modifier.fillMaxWidth()) {
+    Column(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.fillMaxWidth().padding(UiDimens.CardPad)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 SectionHeader(
@@ -1387,9 +1387,16 @@ private fun CalendarCardPure(tasks: List<TaskEntity>) {
                 }
             )
             Spacer(Modifier.height(8.dp))
+            val selNow = selected
             Text(
-                if (selected == today) "\u4eca\u5929\uff08${visibleMonth.monthValue}\u6708${today.dayOfMonth}\u65e5\uff09"
-                else "${selected?.monthValue ?: today.monthValue}\u6708${selected?.dayOfMonth ?: today.dayOfMonth}\u65e5",
+                // vc66：底部文本锚定系统真实日期（LocalDate.now()），翻页绝不改写「今天」的定义；
+                // 旧版把 visibleMonth.monthValue 拼进「今天（X月X日）」，翻到 12 月就变成
+                // 「今天（12月25日）」—— 根因是读了可见月份而不是今天的月份。
+                when {
+                    selNow == null || selNow == today ->
+                        "今天（${today.monthValue}月${today.dayOfMonth}日）"
+                    else -> "${selNow.monthValue}月${selNow.dayOfMonth}日 的日程"
+                },
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold
             )
@@ -1889,7 +1896,7 @@ private fun ThrowbackCard(
 @Composable
 private fun DailyDrawCard(item: ThrowbackItem) {
     // v1.0.7：全透明毛玻璃卡片 + 5% 黑遮罩（GlassCard）替代实心 Card，壁纸可透出
-    GlassCard(modifier = Modifier.fillMaxWidth()) {
+    Column(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(UiDimens.CardPad), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Surface(
@@ -1946,7 +1953,7 @@ private fun TimelineCard(
     // 默认 Card + UiDimens.CardRadius 圆角 + 默认容器色（surfaceContainerLow），
     // 不再单独覆盖 containerColor，保证浅深主题下颜色、圆角与邻卡零偏差。
     // v1.0.7：全透明毛玻璃卡片 + 5% 黑遮罩（GlassCard）替代实心 Card，壁纸可透出
-    GlassCard(modifier = Modifier.fillMaxWidth()) {
+    Column(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(UiDimens.CardPad), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(
                 Modifier.fillMaxWidth(),
@@ -2091,7 +2098,7 @@ private fun LifeCard(
     doneRatio: Int
 ) {
     // v1.0.7：全透明毛玻璃卡片 + 5% 黑遮罩（GlassCard）替代实心 Card，壁纸可透出
-    GlassCard(modifier = Modifier.fillMaxWidth()) {
+    Column(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(UiDimens.CardPad), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             SectionHeader("地球Online · 人生卡片", icon = Icons.Rounded.Public)
             // 昵称加前缀，避免纯数字昵称（如「1」）看起来像渲染残留

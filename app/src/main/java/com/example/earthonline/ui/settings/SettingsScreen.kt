@@ -64,10 +64,10 @@ fun SettingsScreen(vm: SettingsViewModel, moreActions: MoreMenuActions) {
     var showDanger by remember { mutableStateOf(false) }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 title = { Text("设置") },
                 actions = { SettingsIconButton(actions = moreActions, visible = false) }
             )

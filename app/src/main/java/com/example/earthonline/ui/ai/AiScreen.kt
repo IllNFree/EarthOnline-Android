@@ -82,10 +82,10 @@ fun AiScreen(vm: AiViewModel, moreActions: MoreMenuActions) {
     }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 title = { Text("系统") },
                 actions = {
                     IconButton(onClick = { showConfig = true }) {

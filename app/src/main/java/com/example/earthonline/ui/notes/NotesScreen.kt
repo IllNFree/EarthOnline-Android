@@ -1,19 +1,15 @@
 package com.example.earthonline.ui.notes
 
 import com.example.earthonline.ui.components.AnimatedAlertDialog
-import com.example.earthonline.ui.components.bouncyPress
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.EditNote
@@ -24,7 +20,6 @@ import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.FolderOpen
-import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.draw.clip
@@ -90,12 +85,10 @@ fun NotesScreen(
     val folderMap by vm.folderMap.collectAsStateWithLifecycle(initialValue = emptyMap())
 
     var toDelete by remember { mutableStateOf<String?>(null) }
-    // v1.0.6.9：分类相关弹窗状态
-    var showCreateFolder by remember { mutableStateOf(false) }
-    // v1.0.6.11：顶栏「分类管理」入口（对齐背包页右上角），集中管理全部笔记分类
+    // vc66：右下角悬浮「+」与「新建分类」弹窗整体下线 —— 新建笔记入口收敛为
+    // 每个分类右侧的独立「+」按钮；新建分类入口收敛进编辑页的分类选择弹窗。
+    // v1.0.6.11：顶栏「分类管理」入口保留（重命名 / 删除）
     var showFolderManager by remember { mutableStateOf(false) }
-    // vc62（UI 统一批）：右下角悬浮「+」→ 新建笔记/分类选项面板（对齐背包页 FAB 交互）
-    var showCreatePanel by remember { mutableStateOf(false) }
     var manageFolder by remember { mutableStateOf<NoteFolder?>(null) }
     var confirmDeleteFolder by remember { mutableStateOf<NoteFolder?>(null) }
     var moveTarget by remember { mutableStateOf<MemoEntity?>(null) }
@@ -112,12 +105,12 @@ fun NotesScreen(
 
     Box(Modifier.fillMaxSize()) {
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text("笔记") },
                 // v1.0.11：Header 透明化，与主页一致透出壁纸，去掉顶部悬浮覆盖感
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 actions = {
                     // v1.0.6.11：分类管理入口（对齐背包页右上角 Tune 图标）
                     // vc62：搜索改为页面顶部常驻搜索框（对齐背包页），顶栏搜索开关移除
@@ -127,21 +120,6 @@ fun NotesScreen(
                 }
             )
         },
-        floatingActionButton = {
-            // vc62：右下角悬浮「+」—— 弹出「新建笔记 / 新建分类」选项面板
-            FloatingActionButton(
-                onClick = { showCreatePanel = !showCreatePanel },
-                containerColor = AmberPrimary,
-                shape = androidx.compose.foundation.shape.CircleShape,
-                modifier = Modifier.bouncyPress()
-            ) {
-                Icon(
-                    Icons.Rounded.Add,
-                    contentDescription = "新建笔记或分类",
-                    tint = MaterialTheme.colorScheme.onPrimary
-                )
-            }
-        }
     ) { padding ->
         Column(
             Modifier
@@ -272,7 +250,8 @@ fun NotesScreen(
                                 onToggle = {
                                     expanded = if (open) expanded - f.id else expanded + f.id
                                 },
-                                onManage = { manageFolder = f }
+                                // vc66：分类右侧独立「+」—— 直接在该分类下新建笔记
+                                onAddNote = { onEdit(null, f.id) }
                             )
                         }
                         if (open) {
@@ -311,7 +290,7 @@ fun NotesScreen(
                                 onToggle = {
                                     expanded = if (open) expanded - " unfiled" else expanded + " unfiled"
                                 },
-                                onManage = null
+                                onAddNote = { onEdit(null, null) }
                             )
                         }
                         if (open) {
@@ -337,79 +316,7 @@ fun NotesScreen(
         }
     }
 
-        // vc62：新建选项面板（右下角 FAB 弹出）—— 半透明遮罩 + 两张玻璃选项卡
-        if (showCreatePanel) {
-            Box(
-                Modifier
-                    .matchParentSize()
-                    .background(Color.Black.copy(alpha = 0.24f))
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) { showCreatePanel = false }
-            )
-            Column(
-                Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 24.dp, bottom = 108.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                horizontalAlignment = Alignment.End
-            ) {
-                Surface(
-                    onClick = { showCreatePanel = false; onEdit(null, null) },
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
-                    border = androidx.compose.foundation.BorderStroke(
-                        1.dp, MaterialTheme.colorScheme.outlineVariant
-                    )
-                ) {
-                    Row(
-                        Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Icon(
-                            Icons.Rounded.EditNote,
-                            contentDescription = null,
-                            tint = AmberPrimary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Text(
-                            "新建笔记",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
-                Surface(
-                    onClick = { showCreatePanel = false; showCreateFolder = true },
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
-                    border = androidx.compose.foundation.BorderStroke(
-                        1.dp, MaterialTheme.colorScheme.outlineVariant
-                    )
-                ) {
-                    Row(
-                        Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Icon(
-                            Icons.Rounded.Add,
-                            contentDescription = null,
-                            tint = AmberPrimary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Text(
-                            "新建分类",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
-            }
-        }
-    } // vc62：外层 Box（面板覆盖层）闭合
+    } // vc66：外层 Box（原新建面板覆盖层已下线）闭合
 
     toDelete?.let { id ->
         AnimatedAlertDialog(
@@ -424,51 +331,6 @@ fun NotesScreen(
             },
             dismissButton = { TextButton(onClick = { toDelete = null }) { Text("取消") } }
         )
-    }
-
-    // —— 新建分类 ——
-    if (showCreateFolder) {
-        var name by remember { mutableStateOf("") }
-        GlassDialog(onDismissRequest = { showCreateFolder = false }) {
-            Column(
-                Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text("新建分类", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                GlassTextField(
-                    value = name,
-                    onValueChange = { name = it.take(20) },
-                    label = "分类名称",
-                    placeholder = "例如：工作 / 生活 / 灵感",
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = {
-                        if (name.isNotBlank()) { vm.createFolder(name); showCreateFolder = false }
-                    }),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = { showCreateFolder = false },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp)
-                    ) { Text("取消", maxLines = 1) }
-                    Button(
-                        onClick = { vm.createFolder(name); showCreateFolder = false },
-                        enabled = name.isNotBlank(),
-                        modifier = Modifier.weight(1.25f),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = AmberPrimary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    ) { Text("创建", fontWeight = FontWeight.SemiBold, maxLines = 1) }
-                }
-            }
-        }
     }
 
     // —— 分类管理（重命名 / 删除） ——
@@ -570,15 +432,7 @@ fun NotesScreen(
                         }
                     }
                 }
-                Button(
-                    onClick = { showFolderManager = false; showCreateFolder = true },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = AmberPrimary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                ) { Text("新建分类", fontWeight = FontWeight.SemiBold) }
+                // vc66：「新建分类」按钮移除 —— 新建分类统一收敛到编辑页的分类选择弹窗
             }
         }
     }
@@ -654,8 +508,8 @@ fun NotesScreen(
 }
 
 /**
- * v1.0.6.9：分类头部卡 —— 图标 + 名称 + 篇数 + 展开箭头 + 管理入口。
- * [folder] 为空表示「未分类」段（无管理入口）。
+ * v1.0.6.9：分类头部卡 —— 图标 + 名称 + 篇数 + 展开箭头 + 快捷新建。
+ * vc66：「三点更多菜单」移除；右侧改为独立「+」按钮 —— 点击直接在该分类下新建笔记。
  */
 @Composable
 private fun FolderHeaderCard(
@@ -664,7 +518,7 @@ private fun FolderHeaderCard(
     count: Int,
     expanded: Boolean,
     onToggle: () -> Unit,
-    onManage: (() -> Unit)? = null
+    onAddNote: () -> Unit = {}
 ) {
     AppCard(
         modifier = Modifier.fillMaxWidth(),
@@ -701,15 +555,16 @@ private fun FolderHeaderCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            if (onManage != null) {
-                IconButton(onClick = onManage, modifier = Modifier.size(32.dp)) {
-                    Icon(
-                        Icons.Rounded.MoreVert,
-                        contentDescription = "管理分类",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
+            IconButton(
+                onClick = onAddNote,
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    Icons.Rounded.Add,
+                    contentDescription = "在此分类下新建笔记",
+                    tint = AmberPrimary,
+                    modifier = Modifier.size(18.dp)
+                )
             }
             Icon(
                 Icons.Rounded.ChevronRight,

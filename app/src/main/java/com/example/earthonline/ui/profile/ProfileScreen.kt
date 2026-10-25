@@ -120,10 +120,10 @@ fun ProfileScreen(vm: ProfileViewModel, moreActions: MoreMenuActions) {
     })
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 title = { Text("个人资料") },
                 actions = {
                     if (editing) {

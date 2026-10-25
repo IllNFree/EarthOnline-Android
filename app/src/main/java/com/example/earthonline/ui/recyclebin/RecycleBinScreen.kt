@@ -64,10 +64,10 @@ fun RecycleBinRoute(
     var confirmDelete by remember { mutableStateOf<Entry?>(null) }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 title = { Text("回收站") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

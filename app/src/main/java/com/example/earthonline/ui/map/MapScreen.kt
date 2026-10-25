@@ -265,7 +265,7 @@ fun MapScreen(vm: MapViewModel, moreActions: MoreMenuActions) {
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 title = { Text("足迹地图") },
                 actions = {
                     // v1.0.6.9：POI 搜索已改为顶部常驻搜索栏（就地输入、就地出结果），

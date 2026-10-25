@@ -191,7 +191,14 @@ android {
         // ④ 更新日志按 v1.0.0 → v2.0.0 全量补全并分段展示
         // ⑤ 八库接入：Haze / Coil3 / Calendar / Vico / Reorderable / Accompanist-Permissions
         //    + 自研 spring 物理按压反馈（compose-symphony 不存在于 Maven Central，见说明）
-        versionCode = 65
+        // versionCode 66 = v2.0.0（真机四图六反馈修复批 vc66）：
+        // ① 全局一级页面背景统一：所有页面 Scaffold 透明化，透出壁纸 + Haze 毛玻璃（消除任务页死白割裂）
+        // ② 日历「今天」文本锚定 LocalDate.now()（翻页不再把今天改写成可见月份），选中其他日期显示「X月X日 的日程」
+        // ③ 堆叠卡片底部露底断层根除：内层嵌套玻璃卡去除，外层 GlassCard 背景层填满整卡并 clip 裁剪
+        // ④ 笔记加粗持久化：伪粗体投影随 **…** 回填 + BasicTextField 输入时样式区间映射保留
+        // ⑤ 笔记页交互精简：FAB 与「新建分类」入口下线、分类三点菜单移除、分类右侧独立「+」快捷新建
+        // ⑥ 分类与标签合并：编辑页取消标签输入，改分类单选 + 就地新建；隐私政策补 AI 接口 / Steam API 说明
+        versionCode = 66
         versionName = "2.0.0"
         vectorDrawables { useSupportLibrary = true }
         // 高德 SDK 需要原生 so 库，按需裁剪 ABI（阶段3 接入地图前可放行全部）

@@ -113,10 +113,10 @@ fun AllActivitiesRoute(
     val filtered = state.acts
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 title = { Text("全部动态（${filtered.size}）") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

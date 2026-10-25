@@ -1,6 +1,7 @@
 package com.example.earthonline.ui.notes
 
 import com.example.earthonline.ui.components.AnimatedAlertDialog
+import com.example.earthonline.ui.components.GlassDialog
 
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -27,18 +28,21 @@ import androidx.compose.material.icons.rounded.FormatItalic
 import androidx.compose.material.icons.rounded.FormatListBulleted
 import androidx.compose.material.icons.rounded.FormatListNumbered
 import androidx.compose.material.icons.rounded.FormatUnderlined
+import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Redo
 import androidx.compose.material.icons.rounded.Title
 import androidx.compose.material.icons.rounded.Undo
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.SolidColor
@@ -126,8 +130,14 @@ private val MD_ITALIC = SpanStyle(fontStyle = FontStyle.Italic)
 private val MD_STRIKE = SpanStyle(textDecoration = TextDecoration.LineThrough)
 private val MD_UNDER = SpanStyle(textDecoration = TextDecoration.Underline)
 
-/** Markdown 行内标记 → AnnotatedString（加粗 / 斜体 / 删除线 / 下划线） */
-private fun mdToAnnotated(src: String): AnnotatedString = buildAnnotatedString {
+/**
+ * Markdown 行内标记 → AnnotatedString（加粗 / 斜体 / 删除线 / 下划线）。
+ * vc66（加粗持久化修复）：加粗必须带回「伪粗体投影」—— 国产中文字体族普遍没有 Bold 字重，
+ * 只还原 fontWeight 时肉眼看不出加粗，用户就认为「保存失效」。存进库里的 `**…**` 一直都在，
+ * 丢的是重描投影；这里把投影按当前正文颜色补回去，读出来的加粗与写进去的视觉一致。
+ */
+private fun mdToAnnotated(src: String, boldShadow: Shadow? = null): AnnotatedString = buildAnnotatedString {
+    val boldStyle = if (boldShadow != null) MD_BOLD.copy(shadow = boldShadow) else MD_BOLD
     val stack = ArrayList<SpanStyle>()
     var i = 0
     while (i < src.length) {
@@ -139,7 +149,7 @@ private fun mdToAnnotated(src: String): AnnotatedString = buildAnnotatedString {
         if (m.range.first > i) append(src.substring(i, m.range.first))
         when (m.value) {
             "**", "*", "~~" -> {
-                val style = if (m.value == "**") MD_BOLD else if (m.value == "*") MD_ITALIC else MD_STRIKE
+                val style = if (m.value == "**") boldStyle else if (m.value == "*") MD_ITALIC else MD_STRIKE
                 if (stack.lastOrNull() == style) {
                     pop()
                     stack.removeAt(stack.lastIndex)
@@ -223,7 +233,7 @@ private fun blocksToMarkdown(blocks: List<NoteBlock>): String {
 }
 
 /** Markdown 正文 → 块列表（任务行行首的 `[x]` 只用来还原勾选态，之后不再依赖字符） */
-private fun markdownToBlocks(md: String): List<NoteBlock> {
+private fun markdownToBlocks(md: String, boldShadow: Shadow? = null): List<NoteBlock> {
     if (md.isBlank()) return listOf(NoteBlock(id = 1L))
     val out = ArrayList<NoteBlock>()
     var seed = 0L
@@ -233,10 +243,10 @@ private fun markdownToBlocks(md: String): List<NoteBlock> {
         val id = seed
         when {
             line.startsWith("# ") -> out.add(
-                NoteBlock(id, BlockKind.H1, TextFieldValue(mdToAnnotated(line.removePrefix("# ").trim())))
+                NoteBlock(id, BlockKind.H1, TextFieldValue(mdToAnnotated(line.removePrefix("# ").trim(), boldShadow)))
             )
             line.startsWith("## ") -> out.add(
-                NoteBlock(id, BlockKind.H2, TextFieldValue(mdToAnnotated(line.removePrefix("## ").trim())))
+                NoteBlock(id, BlockKind.H2, TextFieldValue(mdToAnnotated(line.removePrefix("## ").trim(), boldShadow)))
             )
             MD_TASK_RE.containsMatchIn(line) -> {
                 val m = MD_TASK_RE.find(line)!!
@@ -244,22 +254,64 @@ private fun markdownToBlocks(md: String): List<NoteBlock> {
                     NoteBlock(
                         id = id,
                         kind = BlockKind.TASK,
-                        value = TextFieldValue(mdToAnnotated(m.groupValues[2].trim())),
+                        value = TextFieldValue(mdToAnnotated(m.groupValues[2].trim(), boldShadow)),
                         done = m.groupValues[1] != " "
                     )
                 )
             }
             MD_BULLET_RE.containsMatchIn(line) -> out.add(
-                NoteBlock(id, BlockKind.BULLET, TextFieldValue(mdToAnnotated(MD_BULLET_RE.find(line)!!.groupValues[1])))
+                NoteBlock(id, BlockKind.BULLET, TextFieldValue(mdToAnnotated(MD_BULLET_RE.find(line)!!.groupValues[1], boldShadow)))
             )
             MD_ORDERED_RE.containsMatchIn(line) -> out.add(
-                NoteBlock(id, BlockKind.ORDERED, TextFieldValue(mdToAnnotated(MD_ORDERED_RE.find(line)!!.groupValues[1])))
+                NoteBlock(id, BlockKind.ORDERED, TextFieldValue(mdToAnnotated(MD_ORDERED_RE.find(line)!!.groupValues[1], boldShadow)))
             )
-            else -> out.add(NoteBlock(id, BlockKind.TEXT, TextFieldValue(mdToAnnotated(line))))
+            else -> out.add(NoteBlock(id, BlockKind.TEXT, TextFieldValue(mdToAnnotated(line, boldShadow))))
         }
     }
     if (out.isEmpty()) out.add(NoteBlock(id = 1L))
     return out
+}
+
+/**
+ * vc66（输入时样式保留）：BasicTextField 走纯文本编辑内核，用户每次敲键返回的
+ * TextFieldValue 都会把 AnnotatedString 的样式全部丢掉 —— 表现是「打好粗体再打个字，
+ * 粗体就没了，保存自然也没有」。这里用「公共前缀 / 公共后缀」把旧样式区间映射到新文本：
+ * 改动点之前的区间原样保留，之后的整体平移，正好落在改动里的区间丢弃。
+ */
+private fun preserveSpans(old: TextFieldValue, new: TextFieldValue): TextFieldValue {
+    val oldStr = old.annotatedString
+    if (oldStr.spanStyles.isEmpty() && oldStr.paragraphStyles.isEmpty()) return new
+    val oldText = oldStr.text
+    val newText = new.annotatedString.text
+    if (newText == oldText) return new
+    var prefix = 0
+    val minLen = minOf(oldText.length, newText.length)
+    while (prefix < minLen && oldText[prefix] == newText[prefix]) prefix++
+    var suffix = 0
+    while (
+        suffix < minLen - prefix &&
+        oldText[oldText.length - 1 - suffix] == newText[newText.length - 1 - suffix]
+    ) suffix++
+    val delta = newText.length - oldText.length
+    fun remap(pos: Int): Int = when {
+        pos <= prefix -> pos
+        pos >= oldText.length - suffix -> pos + delta
+        else -> prefix
+    }
+    val built = buildAnnotatedString {
+        append(newText)
+        oldStr.spanStyles.forEach { r ->
+            val a = remap(r.start)
+            val b = remap(r.end)
+            if (b > a) addStyle(r.item, a, b)
+        }
+        oldStr.paragraphStyles.forEach { r ->
+            val a = remap(r.start)
+            val b = remap(r.end)
+            if (b > a) addStyle(r.item, a, b)
+        }
+    }
+    return new.copy(annotatedString = built)
 }
 
 /** 块 → 纯文本（搜索 / 摘要用；任务块以「[完成] / [待办]」区分，与跨端一致） */
@@ -306,9 +358,11 @@ fun NoteEditorScreen(
        empty range），于是「新建笔记」一点就崩；编辑已有笔记同理，只是时序不同罢了。 */
     val blocks = remember { mutableStateListOf(NoteBlock(id = 1L)) }
     var title by remember { mutableStateOf("") }
+    // vc66（分类与标签合并）：取消单独的标签输入 —— 改为直接选择已有分类（单选），
+    // 或在弹出的选择对话框里就地新建分类。旧标签照常透传保存，老数据不丢。
     var tags by remember { mutableStateOf(listOf<String>()) }
-    var tagInput by remember { mutableStateOf("") }
-    var showTagRow by remember { mutableStateOf(false) }
+    var selFolderId by remember { mutableStateOf(folderId) }
+    var showFolderPicker by remember { mutableStateOf(false) }
     var showDelete by remember { mutableStateOf(false) }
     var loaded by remember { mutableStateOf(false) }
     var bodyScale by remember { mutableFloatStateOf(1f) }
@@ -515,12 +569,6 @@ fun NoteEditorScreen(
         pushHistory()
     }
 
-    fun commitTag() {
-        val t = tagInput.trim().trim('#')
-        if (t.isNotBlank()) tags = NotesViewModel.normalizeTags(tags + t)
-        tagInput = ""
-    }
-
     /* ---------- 图片 / 附件：复制到私有目录，正文里以 Markdown 链接文本呈现 ---------- */
     fun importIntoNoteMedia(uri: Uri, fallbackName: String, onDone: (String) -> Unit) {
         scope.launch {
@@ -558,6 +606,8 @@ fun NoteEditorScreen(
         }
     }
 
+    // vc66：加载时把伪粗体投影按当前正文颜色补齐（见 mdToAnnotated 注释）
+    val boldShadowColor = LocalContentColor.current
     LaunchedEffect(id) {
         if (id.isNotBlank()) {
             vm.getNote(id)?.let { m ->
@@ -565,7 +615,12 @@ fun NoteEditorScreen(
                 val (t, rest) = splitTitle(md)
                 title = t
                 blocks.clear()
-                blocks.addAll(markdownToBlocks(rest))
+                blocks.addAll(
+                    markdownToBlocks(
+                        rest,
+                        Shadow(color = boldShadowColor, offset = Offset(x = 0.9f, y = 0.9f), blurRadius = 0.6f)
+                    )
+                )
                 tags = NotesViewModel.tagsOf(m)
             }
         } else {
@@ -597,7 +652,6 @@ fun NoteEditorScreen(
             onBack()
             return
         }
-        commitTag()
         val bodyMd = blocksToMarkdown(blocks)
         val markdown = if (t.isBlank()) bodyMd else "# $t\n\n$bodyMd"
         val lines = ArrayList<String>()
@@ -608,8 +662,8 @@ fun NoteEditorScreen(
             // v2.0.0：保存整链路兜底 —— 任何意外都只提示，绝不把用户困在崩掉的编辑页里
             runCatching {
                 val savedId = vm.saveNote(id.ifBlank { null }, plain.ifBlank { t }, tags, markdown)
-                // v1.0.6.9：从分类下新建的笔记，保存后自动归入该分类
-                if (folderId != null && savedId.isNotBlank()) vm.assignFolder(savedId, folderId)
+                // vc66（分类与标签合并）：归属编辑页内选定的分类（含未分类 = null）
+                if (savedId.isNotBlank()) vm.assignFolder(savedId, selFolderId?.takeIf { it.isNotBlank() })
             }.onFailure { e ->
                 android.util.Log.e("NoteEditor", "save failed", e)
                 android.widget.Toast.makeText(context, "保存失败：${e.message ?: "未知错误"}", android.widget.Toast.LENGTH_SHORT).show()
@@ -619,12 +673,12 @@ fun NoteEditorScreen(
     }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = Color.Transparent,
         contentWindowInsets = WindowInsets(0),
         topBar = {
             Column {
                 TopAppBar(
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                     title = { Text(if (id.isBlank()) "新建笔记" else "编辑笔记") },
                     navigationIcon = {
                         IconButton(onClick = { save() }) {
@@ -708,49 +762,37 @@ fun NoteEditorScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
+            // vc66（分类与标签合并）：取消单独的标签输入 —— 这里只做「选择 / 新建分类」。
+            // 已有标签仍随笔记透传保存，但不再提供编辑入口。
+            val foldersList by vm.folders.collectAsStateWithLifecycle(initialValue = emptyList())
+            val folderNames = remember(foldersList) { foldersList.associate { it.id to it.name } }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                tags.take(4).forEach { t ->
-                    InputChip(
-                        selected = false,
-                        onClick = { tags = tags - t },
-                        label = { Text("#$t", style = MaterialTheme.typography.labelSmall) },
-                        trailingIcon = {
-                            Icon(
-                                Icons.Rounded.Close,
-                                contentDescription = "移除标签",
-                                modifier = Modifier.size(13.dp)
-                            )
-                        }
-                    )
-                }
-                TextButton(onClick = { showTagRow = !showTagRow }) {
-                    Text(
-                        if (tags.isEmpty() && !showTagRow) "＋ 标签" else "标签",
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                }
-            }
-            if (showTagRow) {
-                GlassTextField(
-                    value = tagInput,
-                    onValueChange = {
-                        if (it.contains(',') || it.contains('，')) {
-                            val parts = it.split(',', '，')
-                            tags = NotesViewModel.normalizeTags(
-                                tags + parts.dropLast(1).map { s -> s.trim().trim('#') }
-                            )
-                            tagInput = parts.last()
-                        } else tagInput = it
+                Text(
+                    "分类",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                AssistChip(
+                    onClick = { showFolderPicker = true },
+                    label = {
+                        Text(
+                            folderNames[selFolderId] ?: "未分类",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     },
-                    placeholder = "输入标签，逗号或回车确认",
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Done),
-                    keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { commitTag() }),
-                    modifier = Modifier.fillMaxWidth()
+                    leadingIcon = {
+                        Icon(
+                            Icons.Rounded.FolderOpen,
+                            contentDescription = null,
+                            tint = AmberPrimary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 )
             }
 
@@ -783,22 +825,25 @@ fun NoteEditorScreen(
                             onFocus = { focusedIndex = index },
                             onValueChange = { nv ->
                                 val cur = blocks.getOrNull(index) ?: return@BlockRow
-                                if (nv.text.contains('\n')) {
+                                // vc66：先保住旧样式再落库状态 —— BasicTextField 每次按键都会
+                                // 丢掉 AnnotatedString 的样式，这里用区间映射原样接回来
+                                val safe = preserveSpans(cur.value, nv)
+                                if (safe.text.contains('\n')) {
                                     // 回车：块内不存换行，按光标位置切块
-                                    val caret = nv.text.indexOf('\n')
-                                    val clean = nv.text.replace("\n", "")
+                                    val caret = safe.text.indexOf('\n')
+                                    val clean = safe.text.replace("\n", "")
                                     if (clean != cur.value.text) {
-                                        blocks[index] = cur.copy(value = nv.copy(text = clean))
+                                        blocks[index] = cur.copy(value = safe.copy(text = clean))
                                     }
                                     splitBlock(index, caret)
                                     return@BlockRow
                                 }
-                                if (nv.text.isEmpty() && cur.value.text.isEmpty() && nv.selection.collapsed && nv.selection.min == 0) {
+                                if (safe.text.isEmpty() && cur.value.text.isEmpty() && safe.selection.collapsed && safe.selection.min == 0) {
                                     // 空块退格：并入上一块（首块则退回正文块）
                                     mergeBack(index)
                                     return@BlockRow
                                 }
-                                blocks[index] = cur.copy(value = nv)
+                                blocks[index] = cur.copy(value = safe)
                                 historyJob?.cancel()
                                 historyJob = scope.launch {
                                     delay(400)
@@ -846,6 +891,79 @@ fun NoteEditorScreen(
             },
             dismissButton = { TextButton(onClick = { showDelete = false }) { Text("取消") } }
         )
+    }
+
+    // —— vc66（分类与标签合并）：分类选择弹窗 —— 单选已有分类、可就地新建分类 ——
+    if (showFolderPicker) {
+        val foldersList by vm.folders.collectAsStateWithLifecycle(initialValue = emptyList())
+        var newName by remember { mutableStateOf("") }
+        GlassDialog(onDismissRequest = { showFolderPicker = false }) {
+            Column(
+                Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text("选择分类", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable { selFolderId = null; showFolderPicker = false }
+                        .padding(horizontal = 10.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    RadioButton(
+                        selected = selFolderId == null,
+                        onClick = { selFolderId = null; showFolderPicker = false }
+                    )
+                    Text("未分类", style = MaterialTheme.typography.bodyLarge)
+                }
+                foldersList.forEach { f ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable { selFolderId = f.id; showFolderPicker = false }
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = selFolderId == f.id,
+                            onClick = { selFolderId = f.id; showFolderPicker = false }
+                        )
+                        Text(
+                            f.name,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    GlassTextField(
+                        value = newName,
+                        onValueChange = { newName = it.take(20) },
+                        placeholder = "新建分类名称",
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                    TextButton(
+                        onClick = {
+                            val newId = vm.createFolder(newName)
+                            if (newId.isNotBlank()) {
+                                selFolderId = newId
+                                showFolderPicker = false
+                            }
+                        },
+                        enabled = newName.isNotBlank()
+                    ) { Text("创建", fontWeight = FontWeight.SemiBold) }
+                }
+            }
+        }
     }
 }
 

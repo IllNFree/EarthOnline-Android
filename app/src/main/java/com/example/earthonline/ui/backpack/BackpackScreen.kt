@@ -417,7 +417,7 @@ private fun ItemGridTile(item: ItemEntity, onEdit: () -> Unit, onDelete: () -> U
                 Modifier.fillMaxWidth().height(64.dp),
                 contentAlignment = Alignment.Center
             ) {
-                // v1.0.17：📦 emoji → Inventory2 圆角矢量
+                // v1.0.17：图标 emoji → Inventory2 圆角矢量
                 Icon(
                     Icons.Rounded.Inventory2,
                     contentDescription = null,
@@ -452,7 +452,7 @@ private fun ViewModeToggle(grid: Boolean, onToggle: () -> Unit) {
             onClick = onToggle,
             modifier = Modifier.padding(horizontal = 8.dp)
         ) {
-            // v1.0.17：☰/⊞ 字形 → ViewList / GridView 圆角矢量
+            // v1.0.17：菜单/网格 字形 → ViewList / GridView 圆角矢量
             Icon(
                 if (grid) Icons.Rounded.ViewList else Icons.Rounded.GridView,
                 contentDescription = null,
@@ -488,7 +488,7 @@ private fun ItemCard(item: ItemEntity, onDelete: (String) -> Unit, onEdit: () ->
                 if (!item.description.isNullOrBlank()) {
                     // v1.0.3：故事卡展示 —— 带书签图标，读起来像一句纪念
                     Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        // v1.0.17：📖 emoji → MenuBook 圆角矢量
+                        // v1.0.17：图标 emoji → MenuBook 圆角矢量
                         Icon(
                             Icons.Rounded.MenuBook,
                             contentDescription = null,

@@ -304,7 +304,8 @@ fun GlassSurface(
 @Composable
 fun GlassCard(
     modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(16.dp),
+    // v2.0.0 P2：卡片圆角统一 22dp（与 Web --eo-radius 同值）
+    shape: Shape = RoundedCornerShape(22.dp),
     onClick: (() -> Unit)? = null,
     content: @Composable BoxScope.() -> Unit
 ) {

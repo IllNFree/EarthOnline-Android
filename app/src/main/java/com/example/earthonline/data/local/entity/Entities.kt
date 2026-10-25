@@ -187,7 +187,9 @@ data class LocationEntity(
     val lng: Double = 0.0,
     val date: String = "",               // YYYY-MM-DD
     val note: String? = null,
-    val tagsJson: String? = null         // List<String> JSON（多标签）
+    val tagsJson: String? = null,        // List<String> JSON（多标签）
+    /** v2.0.0 P0：足迹软删时间 ISO；null=未删除（补齐回收站第六类，与其余四表同构） */
+    val deletedAt: String? = null
 )
 
 /** 最近动态 feed（对应 HTML state.activities，最多保留 50 条环形裁剪） */

@@ -36,8 +36,8 @@ import com.example.earthonline.ui.theme.GlassSurface
  * 所有页面统一取这里的半径 / 间距，避免各页各写一份硬编码导致「细节不统一」。
  */
 object UiDimens {
-    /** 大卡片（整块分区）圆角 */
-    val CardRadius: Dp = 16.dp
+    /** 大卡片（整块分区）圆角（v2.0.0 P2：统一为 22dp，与 Web 端一致） */
+    val CardRadius: Dp = 22.dp
     /** 小卡片（列表项）圆角 */
     val ItemRadius: Dp = 12.dp
     /** 整页内容左右留白 */
@@ -187,7 +187,6 @@ fun EmptyHint(
  */
 @Composable
 fun EmptyState(
-    emoji: String = "",
     title: String,
     message: String,
     modifier: Modifier = Modifier,
@@ -202,7 +201,7 @@ fun EmptyState(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // 插画位：圆形柔底 + 大图标（v1.0.17 起优先矢量 Icons.Rounded，emoji 仅作回退）
+        // 插画位：圆形柔底 + 大图标（v2.0.0 起只接受矢量 Icons.Rounded，Emoji 分支已彻底移除）
         Box(
             modifier = Modifier
                 .size(88.dp)
@@ -217,14 +216,16 @@ fun EmptyState(
                     tint = AmberPrimary,
                     modifier = Modifier.size(40.dp)
                 )
-            } else if (emoji.isNotBlank()) {
-                Text(emoji, style = MaterialTheme.typography.displayMedium)
             }
         }
         Text(
             title,
             style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            // v2.0.0 P1：大字号防截断
+            maxLines = 2,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
         Text(
             message,

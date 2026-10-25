@@ -26,12 +26,12 @@ data class MoreMenuActions(
 /**
  * 右上角「设置」图标按钮 —— 一键直达设置页。
  *
- * v1.2.1 导航栏精简：原来的「☰ 更多」下拉菜单（成就 / 收藏 / 记账 / 地图 / 设置 五项）
+ * v1.2.1 导航栏精简：原来的「菜单 更多」下拉菜单（成就 / 收藏 / 记账 / 地图 / 设置 五项）
  * 整个移除。原因是这些入口在主页快速入口和概览卡里都有更短的直达路径，
  * 多一层下拉只是多一次点击，还挡住内容。现在右上角只留一个齿轮，点一下进设置。
  *
  * 保留函数名 [MoreMenuButton] 之外的所有调用点统一用本组件，行为两端一致
- * （Web 端 pages.js 的 home-more-wrap 也换成了 ⚙️ 图标 + data-action="nav"）。
+ * （Web 端 pages.js 的 home-more-wrap 也换成了 设置 图标 + data-action="nav"）。
  */
 @Composable
 fun SettingsIconButton(

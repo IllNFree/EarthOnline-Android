@@ -840,7 +840,7 @@ private fun HomeTitleBar(actions: MoreMenuActions, greeting: String) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // v1.0.17：Logo 由 🌍 emoji 换为圆角矢量地球（Public），色贴主题琥珀
+        // v1.0.17：Logo 由 地球 emoji 换为圆角矢量地球（Public），色贴主题琥珀
         Icon(
             Icons.Rounded.Public,
             contentDescription = null,
@@ -1581,26 +1581,30 @@ private fun OverviewGrid(
                         if (!sortMode) onReorderEntries(orderedEntries.map { it.id })
                     },
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                    modifier = Modifier.height(30.dp)
+                    // v2.0.0 P1：改 heightIn(min) —— 大字号下按钮可增高，不再硬裁文字
+                    modifier = Modifier.heightIn(min = 30.dp)
                 ) {
                     Text(
                         if (sortMode) "完成" else "排序",
                         style = MaterialTheme.typography.labelMedium,
                         color = if (sortMode) AmberPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
             TextButton(
                 onClick = { onExpandedChange(!expanded) },
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                modifier = Modifier.height(30.dp)
+                // v2.0.0 P1：同上，最小高度 + 省略号，杜绝大字号截断
+                modifier = Modifier.heightIn(min = 30.dp)
             ) {
                 Text(
                     if (expanded) "收起 ▲" else "展开 ▼",
                     style = MaterialTheme.typography.labelMedium,
                     color = AmberPrimary,
-                    maxLines = 1
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }

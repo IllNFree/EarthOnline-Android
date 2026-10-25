@@ -2,7 +2,9 @@ package com.example.earthonline.data.backup
 
 import android.content.Context
 import com.example.earthonline.data.local.dao.*
+import com.example.earthonline.data.local.datastore.SettingsDataStore
 import com.example.earthonline.data.local.entity.*
+import com.example.earthonline.data.photos.MemoryPhoto
 import com.example.earthonline.data.repository.XpLedger
 import com.example.earthonline.util.ImageStore
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -35,7 +37,9 @@ class BackupRepository @Inject constructor(
     @ApplicationContext private val appContext: Context,
     // v1.0.5 清空数据：背包分类与 XP 流水两表也要清
     private val bagCategoryDao: BagCategoryDao,
-    private val xpEventDao: XpEventDao
+    private val xpEventDao: XpEventDao,
+    // v2.0.0 P0：相册元数据与主页速览排序此前完全不在 Payload 里，属于跨端必丢数据
+    private val settings: SettingsDataStore
 ) {
     @Serializable
     data class Payload(
@@ -48,7 +52,11 @@ class BackupRepository @Inject constructor(
         val achievements: List<AchievementEntity> = emptyList(),
         val collections: List<CollectionEntity> = emptyList(),
         val locations: List<LocationEntity> = emptyList(),
-        val activities: List<ActivityEntity> = emptyList()
+        val activities: List<ActivityEntity> = emptyList(),
+        /** v2.0.0 P0：相册元数据（跨端可搬运；文件路径在落地时由对端各自处理） */
+        val photos: List<MemoryPhoto> = emptyList(),
+        /** v2.0.0 P0：主页速览入口自定义排序（JSON 字符串，空=用默认顺序） */
+        val homeEntryOrder: String = ""
     )
 
     suspend fun exportJson(): String {
@@ -63,7 +71,9 @@ class BackupRepository @Inject constructor(
             achievements = achievementDao.observeAll().first(),
             collections = collectionDao.observeAll().first(),
             locations = locationDao.observeAll().first(),
-            activities = activityDao.observeAll().first()
+            activities = activityDao.observeAll().first(),
+            photos = loadPhotos(),
+            homeEntryOrder = settings.homeEntryOrder.first()
         )
         return json.encodeToString(Payload.serializer(), payload)
     }
@@ -78,6 +88,30 @@ class BackupRepository @Inject constructor(
         p.collections.forEach { collectionDao.insert(it) }
         p.locations.forEach { locationDao.insert(it) }
         p.activities.forEach { activityDao.insert(it) }
+        // 相册：按主键 upsert（入站条目覆盖本地同 id，本地独有保留），保持与其它实体同语义
+        if (p.photos.isNotEmpty()) mergePhotos(p.photos)
+        if (p.homeEntryOrder.isNotBlank()) settings.setHomeEntryOrder(p.homeEntryOrder)
+    }
+
+    /** 读取相册元数据（导出前过滤软删：回收站永不跨端） */
+    private suspend fun loadPhotos(): List<MemoryPhoto> {
+        val txt = settings.memoryPhotosJson.first()
+        if (txt.isBlank()) return emptyList()
+        return runCatching {
+            json.decodeFromString(kotlinx.serialization.builtins.ListSerializer(MemoryPhoto.serializer()), txt)
+        }.getOrDefault(emptyList()).filter { it.deletedAt == null }
+    }
+
+    /** 相册合并：同 id 以备份为准，本地独有条目保留 */
+    private suspend fun mergePhotos(incoming: List<MemoryPhoto>) {
+        val local = loadPhotos()
+        val byId = LinkedHashMap<String, MemoryPhoto>()
+        local.forEach { byId[it.id] = it }
+        incoming.forEach { byId[it.id] = it }
+        val merged = byId.values.toList()
+        settings.setMemoryPhotosJson(
+            json.encodeToString(kotlinx.serialization.builtins.ListSerializer(MemoryPhoto.serializer()), merged)
+        )
     }
 
     /**

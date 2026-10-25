@@ -9,7 +9,9 @@ import com.example.earthonline.util.todayStr
 import com.example.earthonline.util.uid
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
@@ -37,7 +39,9 @@ data class MemoryPhoto(
     /** 用户补录的「当年的话」（可空） */
     val note: String = "",
     /** v1.0.6：所属相册 id（可空 = 未分类） */
-    val albumId: String? = null
+    val albumId: String? = null,
+    /** v2.0.0 P0：软删时间 ISO；null=未删除（补齐回收站，与 Room 四表 deletedAt 同构） */
+    val deletedAt: String? = null
 )
 
 /**
@@ -68,7 +72,19 @@ class MemoryPhotoStore @Inject constructor(
 
     fun photosDir(): File = File(context.filesDir, "photos").apply { mkdirs() }
 
-    suspend fun load(): List<MemoryPhoto> = parse(settings.memoryPhotosJson.first())
+    /** 全部条目（含已软删，仅供回收站 / 合并算法使用） */
+    suspend fun loadAll(): List<MemoryPhoto> = parse(settings.memoryPhotosJson.first())
+
+    /** 常规读取：过滤掉已软删条目（除回收站外的一切调用点都应用这个） */
+    suspend fun load(): List<MemoryPhoto> = loadAll().filter { it.deletedAt == null }
+
+    /** 实时流：过滤后的可见照片 */
+    fun photosFlow(): Flow<List<MemoryPhoto>> =
+        settings.memoryPhotosJson.map { parse(it).filter { p -> p.deletedAt == null } }
+
+    /** 实时流：回收站里的照片 */
+    fun recycledFlow(): Flow<List<MemoryPhoto>> =
+        settings.memoryPhotosJson.map { parse(it).filter { p -> p.deletedAt != null } }
 
     private fun parse(txt: String): List<MemoryPhoto> =
         if (txt.isBlank()) emptyList()
@@ -195,11 +211,36 @@ class MemoryPhotoStore @Inject constructor(
         return true
     }
 
-    suspend fun delete(id: String) {
-        val list = load()
+    /** v2.0.0 P0：删除照片改为软删除（保留文件与元数据，30 天内可恢复） */
+    suspend fun delete(id: String) = softDelete(id)
+
+    suspend fun softDelete(id: String) {
+        val list = loadAll()
+        if (list.none { it.id == id }) return
+        save(list.map { if (it.id == id) it.copy(deletedAt = java.time.LocalDateTime.now().toString()) else it })
+    }
+
+    /** 恢复：清掉时间戳，照片回到相册 */
+    suspend fun restore(id: String) {
+        save(loadAll().map { if (it.id == id) it.copy(deletedAt = null) else it })
+    }
+
+    /** 彻底删除：删原图文件 + 移除条目（回收站里再删一次 = 真删） */
+    suspend fun deleteForever(id: String) {
+        val list = loadAll()
         val target = list.firstOrNull { it.id == id } ?: return
         ImageStore.deleteFile(target.path)
         save(list.filter { it.id != id })
+    }
+
+    /** 30 天到期物理清理（cutoff = ISO 时间串） */
+    suspend fun purgeExpired(cutoff: String) {
+        val list = loadAll()
+        val dead = list.filter { it.deletedAt != null && (it.deletedAt ?: "") < cutoff }
+        if (dead.isEmpty()) return
+        dead.forEach { ImageStore.deleteFile(it.path) }
+        val deadIds = dead.map { it.id }.toSet()
+        save(list.filter { it.id !in deadIds })
     }
 
     /**

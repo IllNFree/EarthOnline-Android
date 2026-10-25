@@ -56,7 +56,7 @@ class ProfileViewModel @Inject constructor(
 
     val profile = repo.observe()
 
-    /* ⚠️ 这里必须用 Eagerly 而不是 WhileSubscribed：
+    /* 注意 这里必须用 Eagerly 而不是 WhileSubscribed：
        分享卡片是「点一下按钮」时才读这三个值，UI 平时并不 collect 它们。
        用 WhileSubscribed 的话没有任何订阅者，flow 根本没启动，.value 会永远停在初始值 0
        —— 卡片上就成了「成就 0/0、完成任务 0」，看起来像数据丢了。 */

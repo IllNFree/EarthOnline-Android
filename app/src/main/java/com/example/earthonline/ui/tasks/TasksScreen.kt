@@ -843,7 +843,7 @@ private fun TaskRow(
                         ) {
                             StatusChip(t.status)
                             t.dueDate?.let {
-                                // v1.0.17：📅 emoji → CalendarMonth 矢量
+                                // v1.0.17：日历 emoji → CalendarMonth 矢量
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(3.dp)

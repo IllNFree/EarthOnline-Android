@@ -165,7 +165,7 @@ fun ImageCropperDialog(
                         )
                     }
                 }
-                // 确认按钮在裁剪区底部中央（见 CropperCanvas），取消在顶部栏（✕）
+                // 确认按钮在裁剪区底部中央（见 CropperCanvas），取消在顶部栏（关闭）
             }
         }
     }

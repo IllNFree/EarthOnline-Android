@@ -266,7 +266,8 @@ android {
         //   （服务端还要现场解析 /proc/meminfo），LazyColumn 滑动时 Item 回收重建 → 反复再付一次。
         //   这是与滚动状态无关、藏在每张卡里的「系统服务风暴」。现整个进程只算一次。
         // ④ 修掉 GlassSurface 里 rememberGlassTier() 位于 && 短路链末尾的「条件式读取」隐患。
-        versionCode = 74
+        versionCode = 75
+        // versionCode 75 = v2.0.0（双端对齐封板批 vc75）：P0/P1/P2 全量修复
         versionName = "2.0.0"
         vectorDrawables { useSupportLibrary = true }
         // 高德 SDK 需要原生 so 库，按需裁剪 ABI（阶段3 接入地图前可放行全部）

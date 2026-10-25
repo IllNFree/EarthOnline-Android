@@ -15,7 +15,7 @@ import android.widget.Toast
  *    `ActivityNotFoundException`，裸调用就是一次闪退。这里先用 `resolveActivity` 预检：
  *    有浏览器才发起跳转，没有就直接给提示、连系统那层「无匹配」的异常通道都不进。
  *    预检本身若出问题则**默认放行**（交给下面的 catch 兜底），不会把「有浏览器」误判成没有。
- * 2) ⚠️ **预检在 Android 11+ 受包可见性限制**：manifest 里没有 `<queries>` 声明
+ * 2) 注意 **预检在 Android 11+ 受包可见性限制**：manifest 里没有 `<queries>` 声明
  *    http/https 浏览意图时，`resolveActivity` 对浏览器永远返回 null —— 实测踩过这个坑
  *    （装了 Chrome 却被判成「没有浏览器」，点下载只弹提示）。`startActivity` 不受该限制，
  *    所以真正的兜底是下面的 catch，预检只是让提示更准确。
@@ -48,7 +48,7 @@ fun openUrlInBrowser(
        ① 预检（仅用于给出更准确的提示）：有浏览器就直接跳；没有就提示，且**不发起跳转**。
           预检失败时默认「能跳」（getOrDefault(true)），绝不因为查询本身出问题就把
           「有浏览器」误判成「没有」—— 那样用户点了没反应，比闪退更让人困惑。
-          ⚠️ 预检在 Android 11+ 受**包可见性**限制：manifest 里的 <queries> 必须声明
+          注意 预检在 Android 11+ 受**包可见性**限制：manifest 里的 <queries> 必须声明
              http/https 浏览意图，否则 resolveActivity 永远返回 null（踩过：明明装了 Chrome
              却被判成没浏览器）。而 startActivity 不受该限制，所以 ② 才是真正的兜底。
        ② 真正发起跳转（唯一权威判据），③ 捕获一切异常兜底。 */

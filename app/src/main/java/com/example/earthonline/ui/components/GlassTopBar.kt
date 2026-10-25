@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -73,8 +74,9 @@ fun GlassTopBar(
                     .windowInsetsPadding(
                         WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
                     )
-                    // 标题行高度与 Material3 TopAppBar 对齐，全站二级页头部高度统一
-                    .height(64.dp)
+                    // 标题行高度与 Material3 TopAppBar 对齐，全站二级页头部高度统一。
+                    // v2.0.0 P1：改为最小高度 —— 大字号下顶栏可增高，标题不再被硬裁。
+                    .heightIn(min = 64.dp)
                     .padding(horizontal = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {

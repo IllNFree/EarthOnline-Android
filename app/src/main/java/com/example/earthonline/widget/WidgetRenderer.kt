@@ -78,7 +78,7 @@ object WidgetRenderer {
         )
 
         /* 每一项都单独兜底：任何一张表查询失败都不该让整个小组件变成空壳。
-           ⚠️ 注意第一个参数的语义是「失败时的默认值」，别再写 `fetch(repo.get()) { null }`
+           注意 注意第一个参数的语义是「失败时的默认值」，别再写 `fetch(repo.get()) { null }`
            —— 那样默认值虽被求值，但 block 恒为 null，结果永远是 null（曾因此让小组件一直显示"未设置生日"）。 */
         val profile = fetch<ProfileEntity?>(null) { deps.profileRepo().get() }
         val doneTasks = fetch(0) { deps.taskRepo().doneCount().first() }
@@ -160,7 +160,7 @@ object WidgetRenderer {
     /**
      * 把矢量图标画成位图。
      *
-     * ⚠️ 为什么不能直接 `setImageViewResource` 传矢量：RemoteViews 是在**桌面进程**里 inflate 的，
+     * 注意 为什么不能直接 `setImageViewResource` 传矢量：RemoteViews 是在**桌面进程**里 inflate 的，
      * 不同桌面 / 系统版本对 VectorDrawable 的支持不一致（历史上出现过直接 inflate 失败），
      * 而位图是 100% 通用的。所以入口图标统一在这里预渲染成 ARGB_8888 位图再塞给 ImageView。
      */
@@ -182,7 +182,7 @@ object WidgetRenderer {
     /**
      * 打开指定页面的 PendingIntent。
      *
-     * ⚠️ 两个坑：
+     * 注意 两个坑：
      *  ① PendingIntent 的判等**不看 extra**，只看 action / data / type / class / categories。
      *     四个入口如果只靠 extra 区分，后创建的会把前面的覆盖掉 —— 四个按钮全跳同一个页面。
      *     所以这里给每个路由配了唯一的 data URI。

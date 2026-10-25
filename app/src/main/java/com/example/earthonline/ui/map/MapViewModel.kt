@@ -84,7 +84,7 @@ class MapViewModel @Inject constructor(
      * 单独开通搜索服务，任一环节缺失都会回调 10009 直接静默失败；Web 服务 Key 只校验
      * Key 本身，绑定成本低、报错原因可读（status/info 字段）。
      *
-     * Key 取值优先级：内置常量 [AppConfig.AMAP_WEB_KEY] → 「设置 → 通用」用户自填的 Key。
+     * Key 取值优先级（v2.0.0）：「设置 → 通用」用户自填的 Key → 内置常量 [AppConfig.AMAP_WEB_KEY]。
      * 两者都空时给出明确配置提示；city 传空串表示**全国范围**（传本城市会把「故宫」这类
      * 跨城 POI 过滤掉）。任何异常都降级为空列表 + 错误文案，绝不崩。
      */
@@ -95,9 +95,9 @@ class MapViewModel @Inject constructor(
             return emptyList()
         }
         return withContext(Dispatchers.IO) {
-            val key = AppConfig.AMAP_WEB_KEY.trim().ifBlank {
-                runCatching { settings.amapWebKey.first() }.getOrDefault("").trim()
-            }
+            // v2.0.0 P1：用户自填优先，内置常量仅作兜底（密钥可自助更换，不再被硬编码绑死）
+            val key = runCatching { settings.amapWebKey.first() }.getOrDefault("").trim()
+                .ifBlank { AppConfig.AMAP_WEB_KEY.trim() }
             if (key.isBlank()) {
                 _poiError.value = "尚未配置高德 Web 服务 Key：请让开发者补充，或到「设置 → 通用」自行填写。"
                 return@withContext emptyList()

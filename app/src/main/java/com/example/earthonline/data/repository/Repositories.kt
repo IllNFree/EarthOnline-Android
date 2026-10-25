@@ -6,6 +6,7 @@ import com.example.earthonline.util.nowIso
 import com.example.earthonline.util.todayStr
 import com.example.earthonline.util.uid
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -166,7 +167,12 @@ class LocationRepository @Inject constructor(private val dao: LocationDao) {
     fun search(q: String): Flow<List<LocationEntity>> = dao.search(q)
     suspend fun insert(l: LocationEntity) = dao.insert(l)
     suspend fun update(l: LocationEntity) = dao.update(l)
-    suspend fun delete(id: String) = dao.delete(id)
+    /** v2.0.0 P0：删除足迹改为软删除（进入回收站，30 天内可恢复），不再硬删 */
+    suspend fun delete(id: String) = dao.softDelete(id, nowIso())
+    fun observeRecycled(): Flow<List<LocationEntity>> = dao.observeRecycled()
+    suspend fun restore(id: String) = dao.restore(id)
+    suspend fun hardDelete(id: String) = dao.delete(id)
+    suspend fun purgeExpired(cutoff: String) = dao.purgeExpired(cutoff)
 }
 
 @Singleton
@@ -222,30 +228,32 @@ class RecycleBinRepository @Inject constructor(
     private val taskRepo: TaskRepository,
     private val memoRepo: MemoRepository,
     private val itemRepo: ItemRepository,
-    private val collectionRepo: CollectionRepository
+    private val collectionRepo: CollectionRepository,
+    // v2.0.0 P0：回收站补齐第五、第六类 —— 足迹（Room 软删）与相册（DataStore 软删）
+    private val locationRepo: LocationRepository,
+    private val photoStore: com.example.earthonline.data.photos.MemoryPhotoStore
 ) {
-    /** 回收站条目（跨四表统一渲染模型） */
+    /** 回收站条目（跨四表 + 足迹 + 相册的统一渲染模型） */
     data class Entry(
         val id: String,
-        val kind: String,        // task / memo / item / collection
+        val kind: String,        // task / memo / item / collection / location / photo
         val title: String,
         val detail: String?,     // 次要信息（备注 / 类型 / 正文截断）
         val deletedAt: String
     )
 
-    fun observeEntries(): Flow<List<Entry>> = kotlinx.coroutines.flow.combine(
-        taskRepo.observeRecycled(),
-        memoRepo.observeRecycled(),
-        itemRepo.observeRecycled(),
-        collectionRepo.observeRecycled()
-    ) { ts, ms, its, cs ->
-        val list = buildList {
-            ts.forEach { add(Entry(it.id, "task", it.title, it.note, it.deletedAt.orEmpty())) }
-            ms.forEach { add(Entry(it.id, "memo", it.text.take(40), it.text, it.deletedAt.orEmpty())) }
-            its.forEach { add(Entry(it.id, "item", it.name, it.description, it.deletedAt.orEmpty())) }
-            cs.forEach { add(Entry(it.id, "collection", it.title, it.note, it.deletedAt.orEmpty())) }
+    fun observeEntries(): Flow<List<Entry>> {
+        val flows = listOf(
+            taskRepo.observeRecycled().map { list -> list.map { Entry(it.id, "task", it.title, it.note, it.deletedAt.orEmpty()) } },
+            memoRepo.observeRecycled().map { list -> list.map { Entry(it.id, "memo", it.text.take(40), it.text, it.deletedAt.orEmpty()) } },
+            itemRepo.observeRecycled().map { list -> list.map { Entry(it.id, "item", it.name, it.description, it.deletedAt.orEmpty()) } },
+            collectionRepo.observeRecycled().map { list -> list.map { Entry(it.id, "collection", it.title, it.note, it.deletedAt.orEmpty()) } },
+            locationRepo.observeRecycled().map { list -> list.map { Entry(it.id, "location", it.name, it.note, it.deletedAt.orEmpty()) } },
+            photoStore.recycledFlow().map { list -> list.map { Entry(it.id, "photo", it.note.ifBlank { "照片" }, it.day, it.deletedAt.orEmpty()) } }
+        )
+        return kotlinx.coroutines.flow.combine(flows) { arr ->
+            arr.flatMap { it }.sortedByDescending { e -> e.deletedAt }
         }
-        list.sortedByDescending { it.deletedAt }
     }
 
     /** 恢复（任务连带子任务） */
@@ -253,7 +261,10 @@ class RecycleBinRepository @Inject constructor(
         "task" -> taskRepo.restore(entry.id)
         "memo" -> memoRepo.restore(entry.id)
         "item" -> itemRepo.restore(entry.id)
-        else -> collectionRepo.restore(entry.id)
+        "collection" -> collectionRepo.restore(entry.id)
+        "location" -> locationRepo.restore(entry.id)
+        "photo" -> photoStore.restore(entry.id)
+        else -> Unit
     }
 
     /** 彻底删除单条（硬删） */
@@ -261,7 +272,10 @@ class RecycleBinRepository @Inject constructor(
         "task" -> taskRepo.hardDelete(entry.id)
         "memo" -> memoRepo.hardDelete(entry.id)
         "item" -> itemRepo.hardDelete(entry.id)
-        else -> collectionRepo.hardDelete(entry.id)
+        "collection" -> collectionRepo.hardDelete(entry.id)
+        "location" -> locationRepo.hardDelete(entry.id)
+        "photo" -> photoStore.deleteForever(entry.id)
+        else -> Unit
     }
 
     /** 30 天到期物理清理（启动 + 打开回收站时触发；cutoff = ISO 时间串） */
@@ -270,5 +284,7 @@ class RecycleBinRepository @Inject constructor(
         memoRepo.purgeExpired(cutoff)
         itemRepo.purgeExpired(cutoff)
         collectionRepo.purgeExpired(cutoff)
+        locationRepo.purgeExpired(cutoff)
+        photoStore.purgeExpired(cutoff)
     }
 }

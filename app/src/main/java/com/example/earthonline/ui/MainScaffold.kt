@@ -127,7 +127,7 @@ fun MainScaffold(
     val navController = rememberNavController()
     val settingsVm: SettingsViewModel = hiltViewModel()
     /* 成就引擎提到框架层：解锁提示要在任意页面都能弹。
-       ⚠️ 同一份 VM 必须往下传给成就页（AppNavHost），否则会存在两个引擎实例，
+       注意 同一份 VM 必须往下传给成就页（AppNavHost），否则会存在两个引擎实例，
        各自写一遍「解锁成就」动态。 */
     val achVm: AchievementViewModel = hiltViewModel()
     /* v1.0.0：桌面小组件入口的落地页。

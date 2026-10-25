@@ -415,7 +415,7 @@ class AiViewModel @Inject constructor(
             for (c in calls) {
                 val res = toolExec.execute(c)
                 results += c to res
-                done += (if (toolExec.isOk(res)) "✅ " else "⚠️ ") + toolExec.briefOf(c)
+                done += (if (toolExec.isOk(res)) "完成 " else "失败 ") + toolExec.briefOf(c)
                 commit(headline(prefix, lead, done) + "\n正在生成回复…")
             }
             // ② 协议固定套路：模型要调的工具 + 本地执行结果，追加进上下文
@@ -432,12 +432,12 @@ class AiViewModel @Inject constructor(
             } catch (t: Throwable) {
                 commit(
                     headline(prefix, lead, done) +
-                        "\n\n⚠️ 工具已执行成功，但生成最终回复失败：${(t.message ?: t.javaClass.simpleName).take(120)}"
+                        "\n\n注意 工具已执行成功，但生成最终回复失败：${(t.message ?: t.javaClass.simpleName).take(120)}"
                 )
                 return
             }
             resp.error?.message?.takeIf { it.isNotBlank() }?.let { err ->
-                commit(headline(prefix, lead, done) + "\n\n⚠️ 上游服务返回错误：${err.take(120)}")
+                commit(headline(prefix, lead, done) + "\n\n注意 上游服务返回错误：${err.take(120)}")
                 return
             }
             val msg = resp.choices.firstOrNull()?.message
@@ -456,7 +456,7 @@ class AiViewModel @Inject constructor(
         // 连续 3 轮仍在要工具：主动止损，防止失控刷库
         commit(
             headline(prefix, lead, done) +
-                "\n\n⚠️ 已连续执行 3 轮工具调用，为防误操作先停在这里。可以把需求拆小一点再说一次。"
+                "\n\n注意 已连续执行 3 轮工具调用，为防误操作先停在这里。可以把需求拆小一点再说一次。"
         )
     }
 

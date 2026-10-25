@@ -349,6 +349,9 @@ fun GeneralRoute(
     val quickNotif by vm.quickNotif.collectAsStateWithLifecycle(initialValue = false)
     val aiConfigJson by vm.aiConfigJson.collectAsStateWithLifecycle(initialValue = "")
     val localModelJson by vm.localModelJson.collectAsStateWithLifecycle(initialValue = "")
+    // v2.0.0 P1：高德 Web 服务 Key 自定义入口（密钥不再只能靠内置常量，配额可自助更换）
+    val amapWebKey by vm.amapWebKey.collectAsStateWithLifecycle(initialValue = "")
+    var amapKeyDraft by remember { mutableStateOf<String?>(null) }
 
     var showAiConfig by remember { mutableStateOf(false) }
 
@@ -473,6 +476,37 @@ fun GeneralRoute(
             }
             /* v1.0.12：删除「回收站」「AI 对话」两块 —— 入口已统一收在设置首页
                （数据管理 / AI 配置），二级页不再重复，避免同一功能两处入口。 */
+
+            // v2.0.0 P1：地图服务 Key —— 用户可自助填写高德「Web 服务」Key（用于 POI 搜索）
+            GlassCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("地图服务（高德）", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Text(
+                        "用于足迹页的地点搜索。留空时沿用应用内置 Key；自建 Key 请在开放平台选择「Web 服务」类型。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = amapKeyDraft ?: amapWebKey,
+                        onValueChange = { amapKeyDraft = it },
+                        label = { Text("高德 Web 服务 Key") },
+                        placeholder = { Text("留空 = 使用内置 Key") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = {
+                            val v = (amapKeyDraft ?: amapWebKey).trim()
+                            scope.launch {
+                                vm.saveAmapWebKey(v)
+                                amapKeyDraft = null
+                                snackbar.showSnackbar(if (v.isBlank()) "已清空，将使用内置 Key" else "高德 Key 已保存")
+                            }
+                        }) { Text("保存") }
+                        OutlinedButton(onClick = { amapKeyDraft = "" }) { Text("清空") }
+                    }
+                }
+            }
         }
     }
 }

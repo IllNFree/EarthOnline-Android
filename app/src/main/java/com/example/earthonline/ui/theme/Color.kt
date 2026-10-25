@@ -24,8 +24,11 @@ val TextTertiaryLight = Color(0xFF8D8478)   // --text-3 #8d8478（加深）
    下面把三级/二级文字与边框整体提亮一档，正文与背景的对比度拉到 12:1 以上，
    三级说明文字也从 3.3:1 提到 5:1 以上（WCAG AA 对小字的要求是 4.5:1）。 */
 val BackgroundDark = Color(0xFF1A1A1A)
-val SurfaceDark = Color(0xFF232326)
-val BorderDark = Color(0xFF3F3F46)
+/* v2.0.0 P2：深色卡片基材由「冷灰」改为「暖黑」，与 Web 端 rgb(40,36,30) 完全同值 ——
+   此前 Android #232326（偏蓝）/ Web #28241E（偏暖）双端肉眼可分，属同主题不同调。
+   提亮度几乎一致（L* 13.6 → 13.9），上面那轮 WCAG 对比度结论继续成立。 */
+val SurfaceDark = Color(0xFF28241E)
+val BorderDark = Color(0xFF453F38)
 val TextPrimaryDark = Color(0xFFF2F2F5)
 val TextSecondaryDark = Color(0xFFB6B6BF)
 val TextTertiaryDark = Color(0xFF8F8F99)

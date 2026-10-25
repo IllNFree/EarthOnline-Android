@@ -97,7 +97,7 @@ private val DarkColorScheme = darkColorScheme(
     onSurfaceVariant = TextSecondaryDark,
 
     surfaceContainerLowest = Color(0xFF1A1A1A).copy(alpha = 0.78f),
-    surfaceContainerLow = Color(0xFF232326).copy(alpha = 0.80f),
+    surfaceContainerLow = Color(0xFF28241E).copy(alpha = 0.80f),
     surfaceContainer = Color(0xFF28282B).copy(alpha = 0.80f),
     surfaceContainerHigh = Color(0xFF2E2E32).copy(alpha = 0.80f),
     surfaceContainerHighest = Color(0xFF35353A).copy(alpha = 0.80f),

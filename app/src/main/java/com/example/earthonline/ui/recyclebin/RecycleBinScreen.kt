@@ -16,7 +16,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Backpack
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Lightbulb
+import androidx.compose.material.icons.rounded.PhotoLibrary
+import androidx.compose.material.icons.rounded.Place
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.TaskAlt
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -84,14 +87,14 @@ fun RecycleBinRoute(
                 .padding(horizontal = UiDimens.ListPad)
         ) {
             Text(
-                "删除的任务、灵感、物品与收藏在这里保留 30 天，之后自动清除。内容仅保存在本机，不会同步到云端。",
+                "删除的任务、灵感、物品、收藏、足迹与照片在这里保留 30 天，之后自动清除。内容仅保存在本机，不会同步到云端。",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(vertical = 8.dp)
             )
             if (entries.isEmpty()) {
                 EmptyState(
-                    emoji = "🗑️",
+                    icon = Icons.Rounded.Delete,
                     title = "回收站是空的",
                     message = "删除的内容会先到这里，30 天内都可以随时找回。"
                 )
@@ -132,6 +135,10 @@ private fun kindLabel(kind: String): String = when (kind) {
     "task" -> "任务"
     "memo" -> "灵感"
     "item" -> "物品"
+    "collection" -> "收藏"
+    // v2.0.0 P0：回收站补齐足迹 / 照片两类（此前为硬删，不可恢复）
+    "location" -> "足迹"
+    "photo" -> "照片"
     else -> "收藏"
 }
 
@@ -139,6 +146,9 @@ private fun kindIcon(kind: String): ImageVector = when (kind) {
     "task" -> Icons.Rounded.TaskAlt
     "memo" -> Icons.Rounded.Lightbulb
     "item" -> Icons.Rounded.Backpack
+    "collection" -> Icons.Rounded.Star
+    "location" -> Icons.Rounded.Place
+    "photo" -> Icons.Rounded.PhotoLibrary
     else -> Icons.Rounded.Star
 }
 

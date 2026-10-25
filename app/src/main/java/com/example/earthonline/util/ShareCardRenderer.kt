@@ -168,12 +168,12 @@ object ShareCardRenderer {
         if (data.streakDays > 0) {
             drawStat(c, "连续", "${data.streakDays} 天", gap * 2.5f, statTop, P)
         } else {
-            drawStat(c, "🔥 连续", "—", gap * 2.5f, statTop, P)
+            drawStat(c, "连续", "—", gap * 2.5f, statTop, P)
         }
         if (data.monthKeyword.isNotBlank()) {
             drawStat(c, "本月", data.monthKeyword.take(6), gap * 3.5f, statTop, P)
         } else {
-            drawStat(c, "📅 本月", "—", gap * 3.5f, statTop, P)
+            drawStat(c, "本月", "—", gap * 3.5f, statTop, P)
         }
 
         // 签名（多行居中，超长自动换行，最多 3 行）

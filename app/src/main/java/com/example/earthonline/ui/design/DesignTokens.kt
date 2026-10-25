@@ -32,8 +32,8 @@ object EoSpace {
 object EoRadius {
     /** 小控件 / Chip */
     val Chip = 10.dp
-    /** 标准卡片（与 UiDimens.CardRadius 同值） */
-    val Card = 16.dp
+    /** 标准卡片（v2.0.0 P2：与 Web 端 --eo-radius 22px 对齐；与 UiDimens.CardRadius 同值） */
+    val Card = 22.dp
     /** 大容器 / 底部弹窗顶角 */
     val Sheet = 28.dp
     /** 胶囊（输入框 / 按钮）：半径大于半高即成胶囊，Compose 会自动收敛到半高 */

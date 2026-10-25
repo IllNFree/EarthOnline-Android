@@ -69,7 +69,7 @@ class AutoBackupManager @Inject constructor(
 
     /**
      * 注册表变更监听。应在 Application.onCreate 里调一次（幂等）。
-     * ⚠️ 只监听业务表：本管理器自己写的是文件，不落库，因此不会自激循环。
+     * 注意 只监听业务表：本管理器自己写的是文件，不落库，因此不会自激循环。
      */
     fun start() {
         if (started) return

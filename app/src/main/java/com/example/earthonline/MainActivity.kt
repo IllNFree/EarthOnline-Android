@@ -54,7 +54,7 @@ class MainActivity : ComponentActivity() {
     /**
      * 启动后要落到哪个页面。
      * 桌面小组件的四个入口带这个 extra 直达对应 Tab；默认主页。
-     * ⚠️ 用 Compose 的 state 持有：Activity 已存在时（点小组件属于 SINGLE_TOP + CLEAR_TOP）
+     * 注意 用 Compose 的 state 持有：Activity 已存在时（点小组件属于 SINGLE_TOP + CLEAR_TOP）
      * 走的是 onNewIntent，改这个 state 就能让下面的 content 重组并导航过去。
      */
     private var startRoute by mutableStateOf(Screen.Home.route)

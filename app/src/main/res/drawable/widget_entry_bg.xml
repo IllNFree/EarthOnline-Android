@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 小组件入口底：浅色圆角块。
-     ⚠️ 不能用 ripple：RemoteViews 里的点击态由 launcher 托管，
+     注意 不能用 ripple：RemoteViews 里的点击态由 launcher 托管，
         selector/ripple 的状态切换不会正常触发（会一直是默认态，看着像"没反应"）。 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">

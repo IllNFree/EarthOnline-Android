@@ -132,7 +132,7 @@ class AiToolExecutor @Inject constructor(
             """{"ok":false,"error":"工具执行异常：${(t.message ?: t.javaClass.simpleName).take(120)}"}"""
         }
 
-    /** 执行结果是否成功（VM 用于在 UI 上标 ✅ / ⚠️） */
+    /** 执行结果是否成功（VM 用于在 UI 上标 完成 / 注意） */
     fun isOk(result: String): Boolean = result.contains("\"ok\":true")
 
     /** 给用户看的执行摘要（一行）；参数解析不出就用工具名兜底，绝不抛异常 */

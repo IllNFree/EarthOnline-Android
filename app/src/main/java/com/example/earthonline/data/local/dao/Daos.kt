@@ -337,26 +337,27 @@ interface CollectionDao {
 
 @Dao
 interface LocationDao {
-    @Query("SELECT * FROM locations ORDER BY date DESC")
+    /* v2.0.0 P0：足迹纳入 deletedAt 软删体系，常规读取统一过滤已软删行 */
+    @Query("SELECT * FROM locations WHERE deletedAt IS NULL ORDER BY date DESC")
     fun observeAll(): Flow<List<LocationEntity>>
 
     /** v1.0.5 全局搜索：足迹名称 / 备注 / 标签模糊匹配 */
     @Query(
-        "SELECT * FROM locations WHERE name LIKE '%' || :q || '%' " +
+        "SELECT * FROM locations WHERE deletedAt IS NULL AND (name LIKE '%' || :q || '%' " +
             "OR IFNULL(note, '') LIKE '%' || :q || '%' " +
-            "OR IFNULL(tagsJson, '') LIKE '%' || :q || '%' ORDER BY date DESC LIMIT 20"
+            "OR IFNULL(tagsJson, '') LIKE '%' || :q || '%') ORDER BY date DESC LIMIT 20"
     )
     fun search(q: String): Flow<List<LocationEntity>>
 
-    @Query("SELECT * FROM locations ORDER BY date DESC LIMIT :limit")
+    @Query("SELECT * FROM locations WHERE deletedAt IS NULL ORDER BY date DESC LIMIT :limit")
     fun observeRecent(limit: Int): Flow<List<LocationEntity>>
 
-    @Query("SELECT COUNT(*) FROM locations")
+    @Query("SELECT COUNT(*) FROM locations WHERE deletedAt IS NULL")
     fun count(): Flow<Int>
 
     /** v1.0.0：区间内新增足迹数。locations.date 存的是本地日键（YYYY-MM-DD），
      *  不是 ISO 时间戳，所以这里是闭区间 [fromDay, toDay] —— 与上面几张表的语义不同，勿混用。 */
-    @Query("SELECT COUNT(*) FROM locations WHERE date >= :fromDay AND date <= :toDay")
+    @Query("SELECT COUNT(*) FROM locations WHERE deletedAt IS NULL AND date >= :fromDay AND date <= :toDay")
     fun countBetweenDays(fromDay: String, toDay: String): Flow<Int>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -365,8 +366,25 @@ interface LocationDao {
     @Update
     suspend fun update(l: LocationEntity)
 
+    /** v2.0.0 P0：软删除（打时间戳，行仍在库内，可从回收站恢复） */
+    @Query("UPDATE locations SET deletedAt = :ts WHERE id = :id AND deletedAt IS NULL")
+    suspend fun softDelete(id: String, ts: String)
+
+    /** 回收站：全部已软删足迹 */
+    @Query("SELECT * FROM locations WHERE deletedAt IS NOT NULL ORDER BY deletedAt DESC")
+    fun observeRecycled(): Flow<List<LocationEntity>>
+
+    /** 恢复：清掉时间戳，行回到常规列表 */
+    @Query("UPDATE locations SET deletedAt = NULL WHERE id = :id")
+    suspend fun restore(id: String)
+
+    /** 彻底删除（回收站里再删一次 = 真删） */
     @Query("DELETE FROM locations WHERE id = :id")
     suspend fun delete(id: String)
+
+    /** 30 天到期物理清理（cutoff = ISO 时间串） */
+    @Query("DELETE FROM locations WHERE deletedAt IS NOT NULL AND deletedAt < :cutoff")
+    suspend fun purgeExpired(cutoff: String)
 
     /** v1.0.5 清空数据：整表清空 */
     @Query("DELETE FROM locations")

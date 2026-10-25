@@ -532,7 +532,7 @@ private fun LocalModelPanel(
                         }
 
                         /* ① 先定引擎，再按各自格式校验完整性。
-                           ⚠️ v1.0.6.6 修复「本地模型加载必失败」真机 Bug：
+                           注意 v1.0.6.6 修复「本地模型加载必失败」真机 Bug：
                            原流程无条件要求目录里有 .gguf，而 MNN 模型包里根本没有 gguf
                            （是 llm.mnn + llm.mnn.weight），于是 MNN 用户永远卡在
                            「目录里没有 .gguf 文件」—— 实为校验逻辑与引擎选型脱节。

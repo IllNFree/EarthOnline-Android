@@ -33,7 +33,7 @@
          Android 11（API 30）起有 **包可见性（package visibility）** 限制：
          未在此声明的应用，PackageManager.resolveActivity() / queryIntentActivities() 会当它不存在、
          直接返回 null —— 于是「明明装了 Chrome 却判断成没有浏览器」。
-         ⚠️ 关键区分：startActivity() 本身**不受**包可见性限制（系统 resolver 照常工作），
+         注意 关键区分：startActivity() 本身**不受**包可见性限制（系统 resolver 照常工作），
          只有「查询类」API 受影响。所以：
            - 跳转能力不依赖这段声明；
            - 但想预先判断「有没有浏览器、要不要给提示」就必须靠它。

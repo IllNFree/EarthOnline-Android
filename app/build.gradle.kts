@@ -198,7 +198,18 @@ android {
         // ④ 笔记加粗持久化：伪粗体投影随 **…** 回填 + BasicTextField 输入时样式区间映射保留
         // ⑤ 笔记页交互精简：FAB 与「新建分类」入口下线、分类三点菜单移除、分类右侧独立「+」快捷新建
         // ⑥ 分类与标签合并：编辑页取消标签输入，改分类单选 + 就地新建；隐私政策补 AI 接口 / Steam API 说明
-        versionCode = 66
+        // versionCode 67 = v2.0.0（终极打磨批 vc67）：
+        // ① 二级页 Tab 全局统一为液态玻璃分段控件（GlassTabBar）：选中态改半透明琥珀染，不再实心盖死壁纸
+        // ② 文字自适应：新增 AutoSizeText（Compose 1.8 TextAutoSize 的 1.7.x 等价实现，走 rememberTextMeasurer）
+        //    —— 主页标题与昵称先缩字号再省略，长文本不再被生硬截断成「地球…」
+        // ③ 选项行单行化：任务状态「已完成」等改横向可滚动单行，绝不换行 / 挤成竖排
+        // ④ 笔记页补回右下角 FAB + 新建面板（新建笔记 / 新建分类 BottomSheet）
+        // ⑤ 极限性能：彻底删除 isScrollInProgress 滚动降级（HazeScrollAware 及其调用点一并移除），
+        //    GlassSurface 统一走 graphicsLayer { compositingStrategy = Offscreen } 强制 GPU 离屏缓冲；
+        //    滚动方向经 derivedStateOf 派生且只读进 graphicsLayer —— 滑动全程满血且零重组
+        // ⑥ 新增成就：cover_first / cover_ten（自定义封面，Android 专属，登记为 androidOnly）
+        // ⑦ 更新日志补全 1.9.0 段，消除 1.8.0 → 2.0.0 的版本号跳跃
+        versionCode = 67
         versionName = "2.0.0"
         vectorDrawables { useSupportLibrary = true }
         // 高德 SDK 需要原生 so 库，按需裁剪 ABI（阶段3 接入地图前可放行全部）

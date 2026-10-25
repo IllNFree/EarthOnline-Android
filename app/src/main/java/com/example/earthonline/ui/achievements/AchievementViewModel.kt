@@ -191,7 +191,10 @@ class AchievementViewModel @Inject constructor(
                     aiHubCount = activities.count { it.title.startsWith("AI 快捷") },
                     longMemos = memos.count { it.text.length >= 300 },
                     // 卡片默认 1.0 / 壁纸默认 1.0：任一被改动即视为「调校过手感」
-                    appearanceTuned = if (cardOpacity != 1f || wallpaperAlpha != 1f) 1 else 0
+                    appearanceTuned = if (cardOpacity != 1f || wallpaperAlpha != 1f) 1 else 0,
+                    // —— v2.0.0：自定义封面（Android 端专属）——
+                    customCovers = items.count { !it.coverPath.isNullOrBlank() } +
+                        collections.count { !it.coverPath.isNullOrBlank() }
                 )
                 val sources = EventSources(
                     doneAtList = tasks.mapNotNull { it.doneAt }.sorted(),

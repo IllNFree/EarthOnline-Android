@@ -111,6 +111,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -120,6 +121,7 @@ import com.example.earthonline.util.millisToDayStr
 import com.example.earthonline.util.launchAccounting
 import com.example.earthonline.util.todayStr
 import com.example.earthonline.ui.components.AnimatedAlertDialog
+import com.example.earthonline.ui.components.AutoSizeText
 import com.example.earthonline.ui.components.bouncyPress
 import com.example.earthonline.ui.components.ConfettiBurst
 import com.example.earthonline.ui.components.EmptyHint
@@ -131,7 +133,6 @@ import com.example.earthonline.ui.components.IconChip
 import com.example.earthonline.ui.components.ModuleTints
 import com.example.earthonline.ui.components.SectionHeader
 import com.example.earthonline.ui.components.TagChip
-import com.example.earthonline.ui.theme.HazeScrollAware
 import androidx.compose.foundation.lazy.rememberLazyListState
 import com.example.earthonline.ui.components.UiDimens
 import com.example.earthonline.ui.components.UserAvatar
@@ -273,112 +274,110 @@ fun HomeScreen(
             }
         }
     // homeListState 声明在 HomeScreen 外层作用域（FAB 滚动监听共用），这里只挂滑动模糊追踪
-    HazeScrollAware(homeListState) {
-    LazyColumn(
-        state = homeListState,
-        // v1.0.20：键盘让位已上收到 MainScaffold（bottomBar 高度与 IME 取大者）——
-        // 这里不再叠 imePadding，消除「键盘上方巨大空白断层」。
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(
-            start = UiDimens.ScreenPad,
-            end = UiDimens.ScreenPad,
-            top = 8.dp,
-            bottom = 24.dp
-        ),
-        verticalArrangement = Arrangement.spacedBy(UiDimens.Gap)
-    ) {
-        item(key = "search", contentType = "search") {
-            HomeSearchBox(
-                query = query,
-                results = results,
-                onQueryChange = onQueryChange,
-                onPickResult = onPickResult,
-                onFocusChange = { }
-            )
-        }
+LazyColumn(
+    state = homeListState,
+    // v1.0.20：键盘让位已上收到 MainScaffold（bottomBar 高度与 IME 取大者）——
+    // 这里不再叠 imePadding，消除「键盘上方巨大空白断层」。
+    modifier = Modifier.fillMaxSize(),
+    contentPadding = PaddingValues(
+        start = UiDimens.ScreenPad,
+        end = UiDimens.ScreenPad,
+        top = 8.dp,
+        bottom = 24.dp
+    ),
+    verticalArrangement = Arrangement.spacedBy(UiDimens.Gap)
+) {
+    item(key = "search", contentType = "search") {
+        HomeSearchBox(
+            query = query,
+            results = results,
+            onQueryChange = onQueryChange,
+            onPickResult = onPickResult,
+            onFocusChange = { }
+        )
+    }
 
-        item(key = "hero", contentType = "hero") {
-            HeroBanner(
-                state = state,
-                onAvatarClick = { onNavigate("profile") }
-            )
-        }
+    item(key = "hero", contentType = "hero") {
+        HeroBanner(
+            state = state,
+            onAvatarClick = { onNavigate("profile") }
+        )
+    }
 
-        // v1.0.3：历年今日 —— 去年今天留下的记录，有内容才出现
-        if (state.throwback.isNotEmpty()) {
-            item(key = "throwback", contentType = "card") {
-                ThrowbackCard(
-                    items = state.throwback,
-                    comeback = state.comeback,
-                    onSeen = onThrowbackSeen
-                )
-            }
-        }
-
-        item(key = "overview", contentType = "overview") {
-            OverviewGrid(
-                state = state,
-                expanded = overviewExpanded,
-                onExpandedChange = { overviewExpanded = it },
-                onNavigate = onNavigate,
-                onAccounting = moreActions.onAccounting,
-                onEditEntries = { showQuickEdit = true },
-                onReorderEntries = onReorderEntries
-            )
-        }
-
-        // v1.0.6.9（死命令）：卡片堆叠移动到「速览」正下方 —— 今日一签 / 最近动态 /
-        // 日程 / 时间轴 / 人生卡片收进堆叠区，左右滑动翻页（相邻卡片边缘露出），纯展示。
-        item(key = "stack", contentType = "card") {
-            HomeStack(
-                stackCards = state.stackCards,
-                stackScale = state.stackScale,
-                onStackScaleChange = onStackScaleChange,
-                dailyDraw = state.dailyDraw,
-                acts = state.allActs,
-                feedKinds = state.feedKinds,
-                feedLimit = state.feedLimit,
-                calendarTasks = state.calendarTasks,
-                timeline = {
-                    TimelineCard(
-                        items = state.timeline,
-                        customIds = state.customTimeline.map { it.key }.toSet(),
-                        streakStage = state.streakStage,
-                        streakDays = state.streakDays,
-                        onAdd = { showAddTimeline = true },
-                        onDelete = onDeleteTimelineEvent,
-                        pureDisplay = true
-                    )
-                },
-                life = {
-                    LifeCard(
-                        name = state.displayName,
-                        level = state.life.age,
-                        title = state.customTitle,
-                        unlockedAch = state.unlockedAch,
-                        locationCount = state.locationCount,
-                        doneRatio = state.doneRatio
-                    )
-                },
-                onOpenDraw = { draw ->
-                    // 一签来源路由：memo→笔记 / ach→成就 / task→任务 / loc→地图
-                    onNavigate(
-                        when (draw.kind) {
-                            "memo" -> "notes"
-                            "ach" -> "achievements"
-                            "task" -> "tasks"
-                            "loc" -> "map"
-                            else -> "notes"
-                        }
-                    )
-                },
-                onOpenActs = { onNavigate("all_activities") },
-                onOpenCalendar = { onNavigate("tasks") },
-                onCustomize = { showStackEdit = true }
+    // v1.0.3：历年今日 —— 去年今天留下的记录，有内容才出现
+    if (state.throwback.isNotEmpty()) {
+        item(key = "throwback", contentType = "card") {
+            ThrowbackCard(
+                items = state.throwback,
+                comeback = state.comeback,
+                onSeen = onThrowbackSeen
             )
         }
     }
-    }  // vc64：滚动降级作用域闭合
+
+    item(key = "overview", contentType = "overview") {
+        OverviewGrid(
+            state = state,
+            expanded = overviewExpanded,
+            onExpandedChange = { overviewExpanded = it },
+            onNavigate = onNavigate,
+            onAccounting = moreActions.onAccounting,
+            onEditEntries = { showQuickEdit = true },
+            onReorderEntries = onReorderEntries
+        )
+    }
+
+    // v1.0.6.9（死命令）：卡片堆叠移动到「速览」正下方 —— 今日一签 / 最近动态 /
+    // 日程 / 时间轴 / 人生卡片收进堆叠区，左右滑动翻页（相邻卡片边缘露出），纯展示。
+    item(key = "stack", contentType = "card") {
+        HomeStack(
+            stackCards = state.stackCards,
+            stackScale = state.stackScale,
+            onStackScaleChange = onStackScaleChange,
+            dailyDraw = state.dailyDraw,
+            acts = state.allActs,
+            feedKinds = state.feedKinds,
+            feedLimit = state.feedLimit,
+            calendarTasks = state.calendarTasks,
+            timeline = {
+                TimelineCard(
+                    items = state.timeline,
+                    customIds = state.customTimeline.map { it.key }.toSet(),
+                    streakStage = state.streakStage,
+                    streakDays = state.streakDays,
+                    onAdd = { showAddTimeline = true },
+                    onDelete = onDeleteTimelineEvent,
+                    pureDisplay = true
+                )
+            },
+            life = {
+                LifeCard(
+                    name = state.displayName,
+                    level = state.life.age,
+                    title = state.customTitle,
+                    unlockedAch = state.unlockedAch,
+                    locationCount = state.locationCount,
+                    doneRatio = state.doneRatio
+                )
+            },
+            onOpenDraw = { draw ->
+                // 一签来源路由：memo→笔记 / ach→成就 / task→任务 / loc→地图
+                onNavigate(
+                    when (draw.kind) {
+                        "memo" -> "notes"
+                        "ach" -> "achievements"
+                        "task" -> "tasks"
+                        "loc" -> "map"
+                        else -> "notes"
+                    }
+                )
+            },
+            onOpenActs = { onNavigate("all_activities") },
+            onOpenCalendar = { onNavigate("tasks") },
+            onCustomize = { showStackEdit = true }
+        )
+    }
+}
         } // v1.0.18：Column（实心顶块 + 内容列表）闭合
 
         // v1.0.19（核心功能）：右下角悬浮「+」按钮 —— AI 快捷中枢入口。
@@ -497,11 +496,15 @@ fun HomeScreen(
                     Text("自定义最近动态", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
 
                     Text("要展示的分类", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
-                    // v1.0.6.8（死命令 #3 排版修复）：FlowRow 换行 —— 旧版定宽 Row 把
-                    // 「记录」等标签挤压成竖排文字，现按内容宽度自动换行，绝不再挤压。
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    // vc67：单行自适应 —— 「任务 / 成就 / 物品 / 记录」永远在同一水平线上。
+                    // 旧版 FlowRow 会把「记录」挤到第二行（用户投诉「单独换行」），
+                    // 现在改成横向可滚动的单行 Row：放得下就一屏铺开，放不下可左右滑，
+                    // 每个 chip 按内容宽度渲染，文字既不折行也不被挤成竖排。
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         listOf("task" to "任务", "ach" to "成就", "item" to "物品", "memo" to "记录")
                             .forEach { (kind, label) ->
@@ -513,7 +516,7 @@ fun HomeScreen(
                                         // 至少保留一个分类，避免「全部隐藏」死局
                                         if (next.isNotEmpty()) onFeedKindsChange(next)
                                     },
-                                    label = { Text(label, style = MaterialTheme.typography.labelSmall) }
+                                    label = { Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1, softWrap = false) }
                                 )
                             }
                     }
@@ -524,15 +527,18 @@ fun HomeScreen(
                     )
 
                     Text("最多显示条数", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    // vc67：同为单行自适应（与上方「要展示的分类」同一口径）
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         listOf(5 to "5 条", 10 to "10 条", 20 to "20 条", 0 to "全部").forEach { (n, label) ->
                             FilterChip(
                                 selected = state.feedLimit == n,
                                 onClick = { onFeedLimitChange(n) },
-                                label = { Text(label, style = MaterialTheme.typography.labelSmall) }
+                                label = { Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1, softWrap = false) }
                             )
                         }
                     }
@@ -831,7 +837,15 @@ private fun HomeTitleBar(actions: MoreMenuActions, greeting: String) {
         )
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("地球Online", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                // vc67：标题同样自适应 —— 「地球Online」在窄屏 / 大字号下自动缩号，不再被裁。
+                AutoSizeText(
+                    text = "地球Online",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    minFontSize = 14.sp,
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
                 // 当季限定徽章
                 Surface(
                     color = season.accent.copy(alpha = 0.14f),
@@ -849,12 +863,14 @@ private fun HomeTitleBar(actions: MoreMenuActions, greeting: String) {
                 }
             }
             // v1.0.3：动态问候语（时间段 + 最近心情关怀 + 连续天数认可）
-            Text(
-                greeting.ifBlank { "人生记录 · 开放世界" },
+            // vc67：同样自适应 —— 自定义问候语再长也不被生硬截断
+            AutoSizeText(
+                text = greeting.ifBlank { "人生记录 · 开放世界" },
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                minFontSize = 10.sp,
                 maxLines = 2,
-                overflow = TextOverflow.Ellipsis
+                modifier = Modifier.fillMaxWidth()
             )
         }
         SettingsIconButton(actions = actions)
@@ -880,13 +896,15 @@ private fun HeroBanner(state: HomeUiState, onAvatarClick: () -> Unit) {
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
-                        state.displayName,
+                    // v1.0.7：自适应 —— 昵称再长也只占剩余空间并省略，绝不把称号徽章挤出屏幕或与之重叠
+                    // vc67：改用 AutoSizeText —— 先按可用宽度缩字号，缩到刚好放得下，
+                    // 而不是一上来就砍成「地球…」。文字永远完整可读。
+                    AutoSizeText(
+                        text = state.displayName,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
+                        minFontSize = 12.sp,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        // v1.0.7：自适应 —— 昵称再长也只占剩余空间并省略，绝不把称号徽章挤出屏幕或与之重叠
                         modifier = Modifier.weight(1f, fill = false)
                     )
                     // v1.0.3：自定义称号徽章
@@ -2102,10 +2120,14 @@ private fun LifeCard(
         Column(Modifier.padding(UiDimens.CardPad), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             SectionHeader("地球Online · 人生卡片", icon = Icons.Rounded.Public)
             // 昵称加前缀，避免纯数字昵称（如「1」）看起来像渲染残留
-            Text(
-                if (name.isBlank()) "未命名旅行者" else "昵称：$name",
+            // vc67：自适应 —— 长昵称先缩字号再省略，绝不撑破卡片
+            AutoSizeText(
+                text = if (name.isBlank()) "未命名旅行者" else "昵称：$name",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                minFontSize = 11.sp,
+                maxLines = 1,
+                modifier = Modifier.fillMaxWidth()
             )
             Row(
                 Modifier.fillMaxWidth(),

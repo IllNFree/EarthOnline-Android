@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.earthonline.ui.components.MoreMenuActions
 import com.example.earthonline.ui.components.SettingsIconButton
+import com.example.earthonline.ui.theme.AppCard
 import com.example.earthonline.ui.navigation.Screen
 import kotlinx.coroutines.launch
 
@@ -93,11 +94,9 @@ fun SettingsScreen(vm: SettingsViewModel, moreActions: MoreMenuActions) {
                   隐私政策归入「关于」（它是说明性内容，不是数据操作）。 */
             item {
                 SettingsSectionLabel("外观与体验")
-                Surface(
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.82f),
-                    shape = RoundedCornerShape(18.dp),
-                    tonalElevation = 1.dp
-                ) {
+                // vc67：与主页同源的液态玻璃卡片 —— 原为半透明纯色 Surface（0.82f 实底），
+                // 背壁纸被挡死，与主页的通透质感割裂；现统一走 AppCard（Haze 模糊 + 透出壁纸）。
+                AppCard(modifier = Modifier.fillMaxWidth()) {
                     Column {
                         SettingsGroupRow(
                             icon = Icons.Filled.Palette,
@@ -130,11 +129,9 @@ fun SettingsScreen(vm: SettingsViewModel, moreActions: MoreMenuActions) {
             }
             item {
                 SettingsSectionLabel("数据管理")
-                Surface(
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.82f),
-                    shape = RoundedCornerShape(18.dp),
-                    tonalElevation = 1.dp
-                ) {
+                // vc67：与主页同源的液态玻璃卡片 —— 原为半透明纯色 Surface（0.82f 实底），
+                // 背壁纸被挡死，与主页的通透质感割裂；现统一走 AppCard（Haze 模糊 + 透出壁纸）。
+                AppCard(modifier = Modifier.fillMaxWidth()) {
                     Column {
                         SettingsGroupRow(
                             icon = Icons.Filled.Backup,
@@ -167,11 +164,9 @@ fun SettingsScreen(vm: SettingsViewModel, moreActions: MoreMenuActions) {
             }
             item {
                 SettingsSectionLabel("关于")
-                Surface(
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.82f),
-                    shape = RoundedCornerShape(18.dp),
-                    tonalElevation = 1.dp
-                ) {
+                // vc67：与主页同源的液态玻璃卡片 —— 原为半透明纯色 Surface（0.82f 实底），
+                // 背壁纸被挡死，与主页的通透质感割裂；现统一走 AppCard（Haze 模糊 + 透出壁纸）。
+                AppCard(modifier = Modifier.fillMaxWidth()) {
                     Column {
                         SettingsGroupRow(
                             icon = Icons.Filled.Info,

@@ -3,7 +3,7 @@ package com.example.earthonline.ui.tasks
 import com.example.earthonline.ui.components.bouncyPress
 
 import com.example.earthonline.ui.theme.GlassCard
-import com.example.earthonline.ui.theme.GlassSurface
+import com.example.earthonline.ui.components.GlassTabBar
 import android.content.Intent
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animate
@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -72,6 +73,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.earthonline.data.local.entity.TaskEntity
@@ -80,8 +82,9 @@ import com.example.earthonline.ui.components.ConfettiBurst
 import com.example.earthonline.ui.components.EmptyState
 import com.example.earthonline.ui.components.GlassTextField
 import com.example.earthonline.ui.components.MoreMenuActions
+import com.example.earthonline.ui.components.ScrollDirection
+import com.example.earthonline.ui.components.rememberScrollDirection
 import com.example.earthonline.ui.components.UiDimens
-import com.example.earthonline.ui.theme.HazeScrollAware
 import com.example.earthonline.ui.components.MarkdownRemark
 import com.example.earthonline.ui.design.EOConfirmDialog
 import com.example.earthonline.ui.theme.AmberPrimary
@@ -221,12 +224,21 @@ fun TasksScreen(
             )
         },
         floatingActionButton = {
+            // vc67：滚动方向用 derivedStateOf 派生，且只读进 graphicsLayer ——
+            // 滑动时仅更新图层属性，零重组；满血液态玻璃下也不掉帧。
+            val scrollDir = rememberScrollDirection(listState)
             FloatingActionButton(
                 onClick = { addParentId = null; showAdd = true },
                 containerColor = AmberPrimary,
                 // v1.0.6 封板：全套 FAB 统一圆形（M3 默认是 16dp 圆角方块，与主页圆形按钮不一致）
                 shape = CircleShape,
-                modifier = Modifier.bouncyPress()
+                modifier = Modifier
+                    .bouncyPress()
+                    .graphicsLayer {
+                        val s = if (scrollDir.value == ScrollDirection.Down) 0.86f else 1f
+                        scaleX = s
+                        scaleY = s
+                    }
             ) { Icon(Icons.Rounded.Add, contentDescription = "新增任务") }
         }
     ) { padding ->
@@ -403,100 +415,70 @@ fun TasksScreen(
                     )
                 }
             } else {
-                HazeScrollAware(listState) {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = UiDimens.ListPad)
-                        .pointerInput(visible) {
-                            detectDragGesturesAfterLongPress(
-                                onDragStart = { off ->
-                                    val info = listState.layoutInfo.visibleItemsInfo.firstOrNull {
-                                        off.y >= it.offset && off.y <= it.offset + it.size
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = UiDimens.ListPad)
+                    .pointerInput(visible) {
+                        detectDragGesturesAfterLongPress(
+                            onDragStart = { off ->
+                                val info = listState.layoutInfo.visibleItemsInfo.firstOrNull {
+                                    off.y >= it.offset && off.y <= it.offset + it.size
+                                }
+                                dragIndex = info?.index
+                                dragOffset = 0f
+                            },
+                            onDrag = { change, amount ->
+                                val i = dragIndex ?: return@detectDragGesturesAfterLongPress
+                                change.consume()
+                                dragOffset += amount.y
+                                val info = listState.layoutInfo.visibleItemsInfo
+                                    .firstOrNull { it.index == i } ?: return@detectDragGesturesAfterLongPress
+                                val cur = visible.getOrNull(i) ?: return@detectDragGesturesAfterLongPress
+                                val half = info.size / 2f
+                                if (dragOffset > half) {
+                                    // 向下找最近的同级兄弟
+                                    for (j in i + 1 until visible.size) {
+                                        if (visible[j].task.parentId != cur.task.parentId) break
+                                        vm.swapOrder(cur.task, visible[j].task)
+                                        dragIndex = j
+                                        dragOffset -= info.size
+                                        break
                                     }
-                                    dragIndex = info?.index
-                                    dragOffset = 0f
-                                },
-                                onDrag = { change, amount ->
-                                    val i = dragIndex ?: return@detectDragGesturesAfterLongPress
-                                    change.consume()
-                                    dragOffset += amount.y
-                                    val info = listState.layoutInfo.visibleItemsInfo
-                                        .firstOrNull { it.index == i } ?: return@detectDragGesturesAfterLongPress
-                                    val cur = visible.getOrNull(i) ?: return@detectDragGesturesAfterLongPress
-                                    val half = info.size / 2f
-                                    if (dragOffset > half) {
-                                        // 向下找最近的同级兄弟
-                                        for (j in i + 1 until visible.size) {
-                                            if (visible[j].task.parentId != cur.task.parentId) break
-                                            vm.swapOrder(cur.task, visible[j].task)
-                                            dragIndex = j
-                                            dragOffset -= info.size
-                                            break
-                                        }
-                                    } else if (dragOffset < -half) {
-                                        for (j in i - 1 downTo 0) {
-                                            if (visible[j].task.parentId != cur.task.parentId) break
-                                            vm.swapOrder(cur.task, visible[j].task)
-                                            dragIndex = j
-                                            dragOffset += info.size
-                                            break
-                                        }
-                                    }
-                                },
-                                onDragEnd = { dragIndex = null; dragOffset = 0f },
-                                onDragCancel = { dragIndex = null; dragOffset = 0f }
-                            )
-                        },
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    // v1.0.6.9：底部预留 88dp —— 与背包页一致，右下角悬浮「+」不遮挡最后一项
-                    contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)
-                ) {
-                    // Todo 表格视图：表头
-                    if (topTab == "todo") {
-                        item(key = "__todo_header__") { TodoTableHeader() }
-                    }
-                    itemsIndexed(
-                        visible,
-                        key = { _, node -> node.task.id },
-                        // contentType 告诉 Compose「这些格子长得一样」，滚动时可以直接复用
-                        // 上一个同类格子的测量结果与组合结果，省掉一次重新组合
-                        contentType = { _, _ -> if (topTab == "todo") "todoRow" else "taskRow" }
-                    ) { index, node ->
-                        val dragging = dragIndex == index
-                        if (topTab == "todo") {
-                            TodoTableRow(
-                                task = node.task,
-                                selectMode = selectMode,
-                                selected = node.task.id in selected.value,
-                                onToggleSelect = {
-                                    val id = node.task.id
-                                    selected.value = if (id in selected.value)
-                                        selected.value - id else selected.value + id
-                                },
-                                onToggleDone = {
-                                    if (node.task.status != "done") celebrate(node.task.id)
-                                    vm.toggleDone(node.task)
-                                },
-                                onEdit = { editing = node.task }
-                            )
-                        } else {
-                        Box(
-                            Modifier
-                                .animateItem()
-                                .graphicsLayer {
-                                    if (dragging) {
-                                        translationY = dragOffset
-                                        scaleX = 1.02f
-                                        scaleY = 1.02f
+                                } else if (dragOffset < -half) {
+                                    for (j in i - 1 downTo 0) {
+                                        if (visible[j].task.parentId != cur.task.parentId) break
+                                        vm.swapOrder(cur.task, visible[j].task)
+                                        dragIndex = j
+                                        dragOffset += info.size
+                                        break
                                     }
                                 }
-                        ) {
-                        TaskRow(
-                            node = node,
-                            collapsed = collapsed.value.contains(node.task.id),
-                            celebrate = celebrateId == node.task.id,
+                            },
+                            onDragEnd = { dragIndex = null; dragOffset = 0f },
+                            onDragCancel = { dragIndex = null; dragOffset = 0f }
+                        )
+                    },
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                // v1.0.6.9：底部预留 88dp —— 与背包页一致，右下角悬浮「+」不遮挡最后一项
+                contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)
+            ) {
+                // Todo 表格视图：表头
+                if (topTab == "todo") {
+                    item(key = "__todo_header__") { TodoTableHeader() }
+                }
+                itemsIndexed(
+                    visible,
+                    key = { _, node -> node.task.id },
+                    // contentType 告诉 Compose「这些格子长得一样」，滚动时可以直接复用
+                    // 上一个同类格子的测量结果与组合结果，省掉一次重新组合
+                    contentType = { _, _ -> if (topTab == "todo") "todoRow" else "taskRow" }
+                ) { index, node ->
+                    val dragging = dragIndex == index
+                    if (topTab == "todo") {
+                        TodoTableRow(
+                            task = node.task,
                             selectMode = selectMode,
                             selected = node.task.id in selected.value,
                             onToggleSelect = {
@@ -504,28 +486,56 @@ fun TasksScreen(
                                 selected.value = if (id in selected.value)
                                     selected.value - id else selected.value + id
                             },
-                            onToggleCollapse = {
-                                val id = node.task.id
-                                collapsed.value = if (collapsed.value.contains(id))
-                                    collapsed.value - id else collapsed.value + id
-                            },
                             onToggleDone = {
                                 if (node.task.status != "done") celebrate(node.task.id)
                                 vm.toggleDone(node.task)
                             },
-                            onSetProgress = { vm.setProgress(node.task, it) },
-                            onEdit = { editing = node.task },
-                            onAddChild = { addParentId = node.task.id; showAdd = true },
-                            // v1.0.6.10：备注里的 Markdown 待办可点勾回写
-                            onToggleTodo = { vm.updateNote(node.task.id, it) },
-                            // 红线：不直接删除，先弹破坏性确认
-                            onDelete = { pendingDeleteId = node.task.id }
+                            onEdit = { editing = node.task }
                         )
-                        }
-                        }
+                    } else {
+                    Box(
+                        Modifier
+                            .animateItem()
+                            .graphicsLayer {
+                                if (dragging) {
+                                    translationY = dragOffset
+                                    scaleX = 1.02f
+                                    scaleY = 1.02f
+                                }
+                            }
+                    ) {
+                    TaskRow(
+                        node = node,
+                        collapsed = collapsed.value.contains(node.task.id),
+                        celebrate = celebrateId == node.task.id,
+                        selectMode = selectMode,
+                        selected = node.task.id in selected.value,
+                        onToggleSelect = {
+                            val id = node.task.id
+                            selected.value = if (id in selected.value)
+                                selected.value - id else selected.value + id
+                        },
+                        onToggleCollapse = {
+                            val id = node.task.id
+                            collapsed.value = if (collapsed.value.contains(id))
+                                collapsed.value - id else collapsed.value + id
+                        },
+                        onToggleDone = {
+                            if (node.task.status != "done") celebrate(node.task.id)
+                            vm.toggleDone(node.task)
+                        },
+                        onSetProgress = { vm.setProgress(node.task, it) },
+                        onEdit = { editing = node.task },
+                        onAddChild = { addParentId = node.task.id; showAdd = true },
+                        // v1.0.6.10：备注里的 Markdown 待办可点勾回写
+                        onToggleTodo = { vm.updateNote(node.task.id, it) },
+                        // 红线：不直接删除，先弹破坏性确认
+                        onDelete = { pendingDeleteId = node.task.id }
+                    )
+                    }
                     }
                 }
-                }  // vc64：滚动降级作用域闭合
+            }
             }
         }
     }
@@ -598,43 +608,14 @@ fun TasksScreen(
  */
 @Composable
 private fun TaskTabToggle(selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
-    GlassSurface(
-        shape = RoundedCornerShape(20.dp),
+    // vc67：收敛到全站统一的玻璃分段 Tab —— 外框 Haze 真高斯模糊透出壁纸，
+    // 选中段为半透明琥珀染而非实心色块，材质与主页完全同源。
+    GlassTabBar(
+        labels = listOf("日常", "Todo"),
+        selectedIndex = selected,
+        onSelect = onSelect,
         modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = UiDimens.ListPad, vertical = 8.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(4.dp)
-        ) {
-            TaskTabToggleButton("日常", selected = selected == 0) { onSelect(0) }
-            TaskTabToggleButton("Todo", selected = selected == 1) { onSelect(1) }
-        }
-    }
-}
-
-@Composable
-private fun RowScope.TaskTabToggleButton(label: String, selected: Boolean, onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        color = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
-        shape = RoundedCornerShape(16.dp),
-        modifier = Modifier
-            .weight(1f)
-            .height(38.dp)
-    ) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-            Text(
-                label,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Medium,
-                color = if (selected) MaterialTheme.colorScheme.onPrimary
-                else MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
+    )
 }
 
 /**
@@ -1189,16 +1170,17 @@ private fun TaskEditDialog(
                 // 状态
                 Column {
                     Text("状态", style = MaterialTheme.typography.labelMedium)
-                    /* v1.0.1 布局修正 + v1.0.4 二次修正：
-                       v1.0.1 用 Row + weight(1f) 等宽单行解决了「已完成」被挤成两行的问题，
-                       但 weight + softWrap=false + Clip 在大字号 / 窄屏下会直接把超宽文字
-                       裁掉（用户看到「已完」缺字）。现在改为 FlowRow 自然宽度布局：
-                       空间够时四个选项铺同一行，放不下时整体换到下一行——
-                       每个 chip 永远按自身内容宽度渲染，任何字号下文字都完整显示。 */
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    /* vc67：单行自适应 —— 「计划中 / 进行中 / 已暂停 / 已完成」四个选项
+                       永远在同一水平线上完整显示，绝不换行、绝不挤成竖排。
+                       旧版 FlowRow 在窄屏 / 大字号下会把「已完成」甩到第二行（用户投诉）；
+                       现在的做法是：横向可滚动单行 + 每个 chip 按内容宽度渲染
+                       （softWrap=false 禁止折行），放得下就一屏铺开，放不下可左右滑。
+                       注意：**不用** weight(1f) 均分 —— 那会把「已暂停」这类三字标签裁掉。 */
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         STATUSES.forEach { (key, label) ->
                             FilterChip(
@@ -1209,8 +1191,7 @@ private fun TaskEditDialog(
                                         label,
                                         style = MaterialTheme.typography.labelSmall,
                                         maxLines = 1,
-                                        softWrap = false,
-                                        textAlign = TextAlign.Center
+                                        softWrap = false
                                     )
                                 }
                             )

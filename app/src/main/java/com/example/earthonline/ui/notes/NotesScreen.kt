@@ -1,6 +1,8 @@
 package com.example.earthonline.ui.notes
 
 import com.example.earthonline.ui.components.AnimatedAlertDialog
+import com.example.earthonline.ui.components.bouncyClickable
+import com.example.earthonline.ui.components.bouncyPress
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -10,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.EditNote
@@ -25,6 +28,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -39,11 +43,14 @@ import com.example.earthonline.ui.components.EmptyHint
 import com.example.earthonline.ui.components.GlassDialog
 import com.example.earthonline.ui.components.GlassTextField
 import com.example.earthonline.ui.components.MoreMenuActions
+import com.example.earthonline.ui.components.ScrollDirection
+import com.example.earthonline.ui.components.rememberScrollDirection
 import com.example.earthonline.ui.components.UiDimens
-import com.example.earthonline.ui.theme.HazeScrollAware
 import androidx.compose.foundation.lazy.rememberLazyListState
 import com.example.earthonline.ui.theme.AppCard
 import com.example.earthonline.ui.theme.AmberPrimary
+import com.example.earthonline.ui.theme.GlassSurface
+import com.example.earthonline.ui.theme.OnAmber
 import kotlinx.coroutines.launch
 
 /**
@@ -89,6 +96,10 @@ fun NotesScreen(
     // 每个分类右侧的独立「+」按钮；新建分类入口收敛进编辑页的分类选择弹窗。
     // v1.0.6.11：顶栏「分类管理」入口保留（重命名 / 删除）
     var showFolderManager by remember { mutableStateOf(false) }
+    // vc67：右下角 FAB 的新建面板（新建笔记 / 新建分类）
+    var showCreateSheet by remember { mutableStateOf(false) }
+    // vc67：FAB →「新建分类」后的命名弹窗
+    var showNewFolderDialog by remember { mutableStateOf(false) }
     var manageFolder by remember { mutableStateOf<NoteFolder?>(null) }
     var confirmDeleteFolder by remember { mutableStateOf<NoteFolder?>(null) }
     var moveTarget by remember { mutableStateOf<MemoEntity?>(null) }
@@ -102,6 +113,9 @@ fun NotesScreen(
     val unfiled = remember(notes, folderMap, folderIds) {
         notes.filter { val fid = folderMap[it.id]; fid.isNullOrBlank() || fid !in folderIds }
     }
+
+    // vc67：listState 提到 Scaffold 之外 —— 右下角 FAB 的滚动收缩要读它（见下）。
+    val listState = rememberLazyListState()
 
     Box(Modifier.fillMaxSize()) {
     Scaffold(
@@ -120,6 +134,26 @@ fun NotesScreen(
                 }
             )
         },
+        // vc67：补回右下角「+」悬浮按钮 —— 点开底部面板，可新建笔记 / 新建分类。
+        // 与任务页、背包页的 FAB 同一套视觉（圆形 + 琥珀色 + 按压回弹）。
+        // 滚动方向用 derivedStateOf 派生，且**只读进 graphicsLayer**：
+        // 滑动时只改图层属性，零重组 —— 满血液态玻璃下也不掉帧。
+        floatingActionButton = {
+            val scrollDir = rememberScrollDirection(listState)
+            FloatingActionButton(
+                onClick = { showCreateSheet = true },
+                containerColor = AmberPrimary,
+                contentColor = OnAmber,
+                shape = CircleShape,
+                modifier = Modifier
+                    .bouncyPress()
+                    .graphicsLayer {
+                        val s = if (scrollDir.value == ScrollDirection.Down) 0.86f else 1f
+                        scaleX = s
+                        scaleY = s
+                    }
+            ) { Icon(Icons.Rounded.Add, contentDescription = "新建") }
+        }
     ) { padding ->
         Column(
             Modifier
@@ -169,132 +203,96 @@ fun NotesScreen(
                 }
             }
 
-            val listState = rememberLazyListState()
-            HazeScrollAware(listState) {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp
-                ),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                // vc62（UI 统一批）：取消顶部「新建笔记」「新建分类」两大块常驻卡片 ——
-                // 新建入口统一收进右下角悬浮「+」选项面板，列表直接以分类/笔记开头。
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // vc62（UI 统一批）：取消顶部「新建笔记」「新建分类」两大块常驻卡片 ——
+            // 新建入口统一收进右下角悬浮「+」选项面板，列表直接以分类/笔记开头。
 
-                if (filtering) {
-                    // 筛选态：平铺结果，不分组（避免空分类干扰筛选）
-                    item(key = "filter_hint") {
-                        Text(
-                            "「${query.ifBlank { "#$activeTag" }}」的筛选结果（${notes.size}）",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(start = 2.dp, top = 2.dp)
-                        )
-                    }
-                    if (notes.isEmpty()) {
-                        item(key = "filter_empty") {
-                            EmptyHint("没有匹配的笔记", icon = Icons.Rounded.Search)
-                        }
-                    } else {
-                        items(notes, key = { it.id }) { m ->
-                            NoteCard(
-                                text = m.text,
-                                markdown = m.markdown ?: m.text,
-                                tags = NotesViewModel.tagsOf(m),
-                                time = formatNoteTime(m.createdAt),
-                                onClick = { onEdit(m.id, null) },
-                                onDelete = { toDelete = m.id },
-                                onMove = { moveTarget = m }
-                            )
-                        }
+            if (filtering) {
+                // 筛选态：平铺结果，不分组（避免空分类干扰筛选）
+                item(key = "filter_hint") {
+                    Text(
+                        "「${query.ifBlank { "#$activeTag" }}」的筛选结果（${notes.size}）",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 2.dp, top = 2.dp)
+                    )
+                }
+                if (notes.isEmpty()) {
+                    item(key = "filter_empty") {
+                        EmptyHint("没有匹配的笔记", icon = Icons.Rounded.Search)
                     }
                 } else {
-                    if (notes.isEmpty() && folders.isEmpty()) {
-                        item(key = "empty_all") {
-                            Column(
-                                Modifier.fillMaxWidth().padding(top = 48.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Icon(
-                                    Icons.Rounded.EditNote,
-                                    contentDescription = null,
-                                    tint = AmberPrimary,
-                                    modifier = Modifier.size(56.dp)
-                                )
-                                Text(
-                                    "先建一个分类吧",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    "把笔记分门别类：工作、生活、灵感……\n建好分类后，在分类里写笔记。",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        }
+                    items(notes, key = { it.id }) { m ->
+                        NoteCard(
+                            text = m.text,
+                            markdown = m.markdown ?: m.text,
+                            tags = NotesViewModel.tagsOf(m),
+                            time = formatNoteTime(m.createdAt),
+                            onClick = { onEdit(m.id, null) },
+                            onDelete = { toDelete = m.id },
+                            onMove = { moveTarget = m }
+                        )
                     }
-
-                    // —— 分类卡片（可展开/收起） ——
-                    folders.forEach { f ->
-                        val fNotes = notes.filter { folderMap[it.id] == f.id }
-                        val open = f.id in expanded
-                        item(key = "folder-${f.id}") {
-                            FolderHeaderCard(
-                                folder = f,
-                                count = fNotes.size,
-                                expanded = open,
-                                onToggle = {
-                                    expanded = if (open) expanded - f.id else expanded + f.id
-                                },
-                                // vc66：分类右侧独立「+」—— 直接在该分类下新建笔记
-                                onAddNote = { onEdit(null, f.id) }
+                }
+            } else {
+                if (notes.isEmpty() && folders.isEmpty()) {
+                    item(key = "empty_all") {
+                        Column(
+                            Modifier.fillMaxWidth().padding(top = 48.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                Icons.Rounded.EditNote,
+                                contentDescription = null,
+                                tint = AmberPrimary,
+                                modifier = Modifier.size(56.dp)
+                            )
+                            Text(
+                                "先建一个分类吧",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                "把笔记分门别类：工作、生活、灵感……\n建好分类后，在分类里写笔记。",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
                             )
                         }
-                        if (open) {
-                            if (fNotes.isEmpty()) {
-                                item(key = "folder-empty-${f.id}") {
-                                    EmptyHint("这个分类还是空的，写第一篇吧", icon = Icons.Rounded.EditNote)
-                                }
-                            } else {
-                                items(fNotes, key = { it.id }) { m ->
-                                    NoteCard(
-                                        text = m.text,
-                                        markdown = m.markdown ?: m.text,
-                                        tags = NotesViewModel.tagsOf(m),
-                                        time = formatNoteTime(m.createdAt),
-                                        onClick = { onEdit(m.id, null) },
-                                        onDelete = { toDelete = m.id },
-                                        onMove = { moveTarget = m }
-                                    )
-                                }
-                            }
-                            item(key = "folder-new-${f.id}") {
-                                NewNoteInFolderRow(folderName = f.name) { onEdit(null, f.id) }
-                            }
-                        }
                     }
+                }
 
-                    // —— 未分类段（有笔记才显示；一篇都没有时不占位） ——
-                    if (unfiled.isNotEmpty()) {
-                        val open = " unfiled" in expanded
-                        item(key = "unfiled") {
-                            FolderHeaderCard(
-                                folder = null,
-                                name = "未分类",
-                                count = unfiled.size,
-                                expanded = open,
-                                onToggle = {
-                                    expanded = if (open) expanded - " unfiled" else expanded + " unfiled"
-                                },
-                                onAddNote = { onEdit(null, null) }
-                            )
-                        }
-                        if (open) {
-                            items(unfiled, key = { it.id }) { m ->
+                // —— 分类卡片（可展开/收起） ——
+                folders.forEach { f ->
+                    val fNotes = notes.filter { folderMap[it.id] == f.id }
+                    val open = f.id in expanded
+                    item(key = "folder-${f.id}") {
+                        FolderHeaderCard(
+                            folder = f,
+                            count = fNotes.size,
+                            expanded = open,
+                            onToggle = {
+                                expanded = if (open) expanded - f.id else expanded + f.id
+                            },
+                            // vc66：分类右侧独立「+」—— 直接在该分类下新建笔记
+                            onAddNote = { onEdit(null, f.id) }
+                        )
+                    }
+                    if (open) {
+                        if (fNotes.isEmpty()) {
+                            item(key = "folder-empty-${f.id}") {
+                                EmptyHint("这个分类还是空的，写第一篇吧", icon = Icons.Rounded.EditNote)
+                            }
+                        } else {
+                            items(fNotes, key = { it.id }) { m ->
                                 NoteCard(
                                     text = m.text,
                                     markdown = m.markdown ?: m.text,
@@ -305,18 +303,143 @@ fun NotesScreen(
                                     onMove = { moveTarget = m }
                                 )
                             }
-                            item(key = "unfiled-new") {
-                                NewNoteInFolderRow(folderName = "未分类") { onEdit(null, null) }
-                            }
+                        }
+                        item(key = "folder-new-${f.id}") {
+                            NewNoteInFolderRow(folderName = f.name) { onEdit(null, f.id) }
+                        }
+                    }
+                }
+
+                // —— 未分类段（有笔记才显示；一篇都没有时不占位） ——
+                if (unfiled.isNotEmpty()) {
+                    val open = " unfiled" in expanded
+                    item(key = "unfiled") {
+                        FolderHeaderCard(
+                            folder = null,
+                            name = "未分类",
+                            count = unfiled.size,
+                            expanded = open,
+                            onToggle = {
+                                expanded = if (open) expanded - " unfiled" else expanded + " unfiled"
+                            },
+                            onAddNote = { onEdit(null, null) }
+                        )
+                    }
+                    if (open) {
+                        items(unfiled, key = { it.id }) { m ->
+                            NoteCard(
+                                text = m.text,
+                                markdown = m.markdown ?: m.text,
+                                tags = NotesViewModel.tagsOf(m),
+                                time = formatNoteTime(m.createdAt),
+                                onClick = { onEdit(m.id, null) },
+                                onDelete = { toDelete = m.id },
+                                onMove = { moveTarget = m }
+                            )
+                        }
+                        item(key = "unfiled-new") {
+                            NewNoteInFolderRow(folderName = "未分类") { onEdit(null, null) }
                         }
                     }
                 }
             }
-            }  // vc64：滚动降级作用域闭合
+        }
         }
     }
 
     } // vc66：外层 Box（原新建面板覆盖层已下线）闭合
+
+    // —— vc67：右下角 FAB 的新建面板 ——
+    // 两个入口：「新建笔记」直接进编辑器（未分类），「新建分类」就地起一个新分类。
+    // 两者都用玻璃材质（GlassSurface），与全站弹层口径一致。
+    if (showCreateSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showCreateSheet = false },
+            containerColor = Color.Transparent,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        ) {
+            GlassSurface(
+                shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 18.dp, vertical = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        "新建",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    // 新建笔记
+                    SheetActionRow(
+                        icon = Icons.Rounded.EditNote,
+                        title = "新建笔记",
+                        subtitle = "先写内容，分类可在编辑器里选"
+                    ) {
+                        showCreateSheet = false
+                        onEdit(null, null)
+                    }
+                    // 新建分类
+                    SheetActionRow(
+                        icon = Icons.Rounded.FolderOpen,
+                        title = "新建分类",
+                        subtitle = "建好分类后，在里面写笔记"
+                    ) {
+                        showCreateSheet = false
+                        showNewFolderDialog = true
+                    }
+                }
+            }
+        }
+    }
+
+    // 新建分类的命名弹窗（FAB → 新建分类 → 输入名称）
+    if (showNewFolderDialog) {
+        var folderName by remember { mutableStateOf("") }
+        GlassDialog(onDismissRequest = { showNewFolderDialog = false }) {
+            Column(
+                Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text("新建分类", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                GlassTextField(
+                    value = folderName,
+                    onValueChange = { folderName = it.take(20) },
+                    label = "分类名称",
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { showNewFolderDialog = false },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) { Text("取消", maxLines = 1) }
+                    Button(
+                        onClick = {
+                            val id = vm.createFolder(folderName)
+                            showNewFolderDialog = false
+                            // 建好即进编辑器，并已归入新分类
+                            if (id.isNotBlank()) onEdit(null, id)
+                        },
+                        enabled = folderName.isNotBlank(),
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AmberPrimary,
+                            contentColor = OnAmber
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) { Text("创建并写笔记", fontWeight = FontWeight.SemiBold, maxLines = 1) }
+                }
+            }
+        }
+    }
 
     toDelete?.let { id ->
         AnimatedAlertDialog(
@@ -504,6 +627,52 @@ fun NotesScreen(
                 }
             }
         }
+    }
+}
+
+/**
+ * vc67：新建面板里的一行入口（图标 + 标题 + 说明）。
+ * 玻璃材质、可点、带回弹，整行都是热区。
+ */
+@Composable
+private fun SheetActionRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .bouncyClickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Box(
+            Modifier
+                .size(38.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(AmberPrimary.copy(alpha = 0.16f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = AmberPrimary, modifier = Modifier.size(20.dp))
+        }
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Icon(
+            Icons.Rounded.ChevronRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp)
+        )
     }
 }
 

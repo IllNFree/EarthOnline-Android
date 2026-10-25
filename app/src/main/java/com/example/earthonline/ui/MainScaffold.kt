@@ -221,7 +221,9 @@ fun MainScaffold(
         /* vc64：「壁纸模糊度」滑块改挂到 Haze 的模糊强度上（不再对整屏图片做 Compose blur）。
            整屏 Modifier.blur 是全项目最贵的一处 GPU 操作（每帧一次全屏高斯），
            现在由 Haze 在小得多的卡片区域上做真模糊，同样甚至更好的质感、开销低一个数量级。
-           列表页滚动时会在此基础上再降一档（见各列表的 ProvideHazeBlurScale）。 */
+           vc67（死命令）：**滑动时不再降级** —— 下面这个缩放只跟随用户的「壁纸模糊度」设置
+           （外观→壁纸模糊度滑块，0=清晰 / 24=重度毛玻璃），与滚动状态彻底解耦；
+           滑动全程液态玻璃 100% 满血，模糊半径不会再被临时压低造成视觉跳变。 */
         ProvideHazeBlurScale((0.72f + (wallpaperBlur / 24f) * 0.48f).coerceIn(0.55f, 1f)) {
         Scaffold(
         containerColor = MaterialTheme.colorScheme.background,

@@ -94,7 +94,9 @@ data class AchStats(
     // —— v1.0.6：本轮新功能成就用 ——
     val aiHubCount: Int = 0,        // AI 快捷中枢归档条数（动态流里 title 以「AI 快捷」开头的条数，仅 Android）
     val longMemos: Int = 0,         // 正文 ≥300 字的「长文」笔记条数（笔记系统重构）
-    val appearanceTuned: Int = 0    // 卡片 / 壁纸不透明度是否被调过（0 / 1）
+    val appearanceTuned: Int = 0,   // 卡片 / 壁纸不透明度是否被调过（0 / 1）
+    // —— v2.0.0：自定义封面（Android 端专属） ——
+    val customCovers: Int = 0       // 已设置自定义封面的物品 + 收藏合计
 )
 
 /**
@@ -265,6 +267,12 @@ val AUTO_RULES: List<AutoRule> = listOf(
     // ————— v1.0.6：AI 快捷中枢成就（Android 端专属功能，不进跨端 canonical） —————
     AutoRule("ai_hub_first", "一句话的事", "用 AI 快捷中枢完成第一次自动归档", "general", 1) { it.aiHubCount },
     AutoRule("ai_hub_ten", "AI 得力助手", "累计用 AI 快捷中枢归档 10 条记录", "general", 10) { it.aiHubCount },
+
+    // ————— v2.0.0：自定义封面成就（Android 端专属功能，不进跨端 canonical） —————
+    // 自定义封面（coverPath 字段 + 系统照片选择器）目前只有 Android 端实现，
+    // iOS / Windows 尚无此能力，故登记为 androidOnly，不参与三端对齐校验。
+    AutoRule("cover_first", "第一帧记忆", "给第一件物品或收藏换上自定义封面", "general", 1) { it.customCovers },
+    AutoRule("cover_ten", "封面收藏家", "累计为 10 件物品或收藏设置自定义封面", "general", 10) { it.customCovers },
 
     // ————— v1.2.0：彩蛋（隐藏成就，未解锁时 UI 打码） —————
     AutoRule(

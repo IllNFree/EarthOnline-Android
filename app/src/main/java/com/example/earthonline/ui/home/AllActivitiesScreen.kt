@@ -2,8 +2,9 @@ package com.example.earthonline.ui.home
 
 import com.example.earthonline.ui.theme.GlassCard
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -148,16 +149,18 @@ fun AllActivitiesRoute(
                     )
                     // v1.0.6.8（排版修复）：FlowRow 换行 —— 旧版定宽 Row 把 5 枚 chips
                     // 挤压成竖排小字，现按内容宽度自动换行，标签完整可读。
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.fillMaxWidth()
+                    // vc67：单行自适应 —— 五个条数选项永远在同一水平线上，不换行。
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         listOf(3 to "3 条", 5 to "5 条", 10 to "10 条", 20 to "20 条", 0 to "不限").forEach { (n, label) ->
                             FilterChip(
                                 selected = state.feedLimit == n,
                                 onClick = { vm.setFeedLimit(n) },
-                                label = { Text(label, style = MaterialTheme.typography.labelSmall) }
+                                label = { Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1, softWrap = false) }
                             )
                         }
                     }

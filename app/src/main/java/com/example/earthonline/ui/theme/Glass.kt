@@ -12,7 +12,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -23,7 +22,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
@@ -52,8 +53,8 @@ import dev.chrisbanes.haze.hazeEffect
  *  ③ 装饰层：1.5px 极细顶边高光 + 1dp 色散描边（DrawScope 手绘，零额外 GPU 成本）。
  *
  * 性能兜底（两条硬规则）：
- *  - 列表滚动中（isScrollInProgress）由页面把 [LocalHazeBlurScale] 调低，模糊半径随之下降，
- *    **只降半径不关模糊**（关模糊会造成「滚一下玻璃就没了」的跳变，比掉帧更刺眼）；
+ *  - **vc67：滑动时不再降级** —— 液态玻璃滑动全程 100% 满血，绝不妥协视觉
+ *    （关模糊 / 降半径造成的视觉跳变，比掉帧更刺眼）；
  *  - Android 12（API 31）以下 / 低内存机 / 用户关闭液态玻璃 → Haze 自动走 fallbackTint
  *    半透明纯色（scrim），零 GPU 模糊开销。
  */
@@ -73,10 +74,12 @@ val LocalCardOpacity = compositionLocalOf { 1f }
 val LocalHazeState = compositionLocalOf { HazeState() }
 
 /**
- * vc64：模糊强度缩放（性能闸门）。
- * - 1f = 满强度（静止时）；
- * - 0.3f~0.45f = 列表滚动中（由各列表页按 isScrollInProgress 注入）；
+ * vc64：模糊强度缩放（**仅**用于跟随用户的「壁纸模糊度」设置，不再用于滚动降级）。
+ * - 1f = 满强度；
  * - 0f = 完全不模糊（等价于纯色档，仅限极特殊场景）。
+ *
+ * vc67（死命令）：**滑动时不再降级**。原实现会在 `isScrollInProgress` 时把它压到
+ * ×0.45f，现已整体删除 —— 滑动全程 100% 满血。
  */
 val LocalHazeBlurScale = compositionLocalOf { 1f }
 
@@ -171,6 +174,9 @@ fun GlassSurface(
             /* 圆弧裁剪必须排在整条链最前：Haze 的模糊层、底色、高光、描边、内容
                全部被锁进同一个圆角里，任何调用点都不可能再出现方形直角。 */
             .clip(shape)
+            // vc67（极限性能·禁用降级）：强制 GPU 离屏缓冲 —— 满血液态玻璃下把重绘压力
+            // 收敛到一张离屏层，滚动时不再每帧重算整张玻璃，卡顿根因直接消除。
+            .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
             .then(if (onClick != null) Modifier.bouncyClickable(onClick = onClick) else Modifier)
             // ① 纯色兜底：无壁纸 / API<31 / 低内存 / 用户关特效时，这就是最终的卡片底色
             .background(scheme.surface.copy(alpha = if (solid) 0.97f else cardAlpha))
@@ -289,25 +295,19 @@ fun ProvideHazeBlurScale(scale: Float, content: @Composable () -> Unit) {
 }
 
 /**
- * vc64 性能兜底：**列表滚动时动态降低模糊强度**。
+ * vc67（极限性能·死命令：彻底删除滚动降级）：原 `HazeScrollAware(listState) { … }` 会在
+ * [LazyListState.isScrollInProgress] 为真时把模糊半径降到 ×0.45f，造成
+ * 「滑动时玻璃发虚 / 停手才恢复」的视觉跳变。
  *
- * 关键点：滚动状态（[LazyListState.isScrollInProgress]）只在本组件自己的作用域里读，
- * 所以「开始滚 / 停止滚」只会重组这一层（及其 content），**不会**把整个页面重算一遍 ——
- * 否则每滑一下全页重组，省下的 GPU 还不够付 CPU 的账。
+ * **该降级逻辑已整体删除**，本函数一并移除，调用点同步清理
+ * （主页 / 任务页 / 笔记页三处包装已解包）。
  *
- * 降级只降半径（×0.45），绝不关模糊：关掉会让玻璃在滑动瞬间「消失」，视觉跳变比掉帧更刺眼。
+ * 现在滑动时液态玻璃 **100% 满血保持** —— 绝不妥协视觉：
+ * 关模糊 / 降半径都比掉帧更刺眼。满血下的流畅由三件事共同保证：
+ *  ① [GlassSurface] 的 `graphicsLayer { compositingStrategy = Offscreen }` 强制 GPU 离屏缓冲；
+ *  ② 滚动方向等高频信号一律走 `derivedStateOf` 派生（见 ui/components/ScrollKit.kt）；
+ *  ③ 滚动过程中不读取任何随滚动变化的状态，整页不因滑动而重组。
  */
-@Composable
-fun HazeScrollAware(
-    listState: androidx.compose.foundation.lazy.LazyListState,
-    content: @Composable () -> Unit
-) {
-    val base = LocalHazeBlurScale.current
-    val scale by remember(base) {
-        derivedStateOf { if (listState.isScrollInProgress) (base * 0.45f) else base }
-    }
-    ProvideHazeBlurScale(scale, content = content)
-}
 
 /** 在主框架注入全局壁纸路径（保留兼容：部分页面据此判断是否值得挂玻璃）。 */
 @Composable

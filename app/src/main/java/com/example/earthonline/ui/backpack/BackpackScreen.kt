@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.asImageBitmap
@@ -65,12 +66,14 @@ import com.example.earthonline.ui.components.EmptyHint
 import com.example.earthonline.ui.components.EmptyState
 import com.example.earthonline.ui.components.GlassTextField
 import com.example.earthonline.ui.components.MoreMenuActions
+import com.example.earthonline.ui.components.ScrollDirection
+import com.example.earthonline.ui.components.rememberScrollDirection
 import com.example.earthonline.ui.components.UiDimens
 import com.example.earthonline.ui.components.TrackScrollBlur
 import androidx.compose.foundation.lazy.rememberLazyListState
 import com.example.earthonline.ui.theme.AmberPrimary
+import com.example.earthonline.ui.components.GlassTabBar
 import com.example.earthonline.ui.theme.AppCard
-import com.example.earthonline.ui.theme.GlassSurface
 import com.example.earthonline.ui.theme.pressScaleClickable
 import com.example.earthonline.ui.theme.pressScaleCombinedClickable
 import kotlinx.serialization.json.Json
@@ -142,6 +145,9 @@ fun BackpackScreen(
         }
     }
 
+    // vc67：FAB 滚动收缩用的列表状态（与下方两个面板各自的列表状态分开，互不干扰）
+    val fabListState = rememberLazyListState()
+
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
@@ -168,12 +174,20 @@ fun BackpackScreen(
             )
         },
         floatingActionButton = {
+            // vc67：滚动方向用 derivedStateOf 派生，且只读进 graphicsLayer —— 零重组
+            val scrollDir = rememberScrollDirection(fabListState)
             FloatingActionButton(
                 onClick = { if (tab == 0) showItem = true else showCollection = true },
                 containerColor = AmberPrimary,
                 // v1.0.6 封板：统一圆形，跟主页 AI 按钮一个形状语言
                 shape = CircleShape,
-                modifier = Modifier.bouncyPress()
+                modifier = Modifier
+                    .bouncyPress()
+                    .graphicsLayer {
+                        val s = if (scrollDir.value == ScrollDirection.Down) 0.86f else 1f
+                        scaleX = s
+                        scaleY = s
+                    }
             ) { Icon(Icons.Rounded.Add, contentDescription = "新增") }
         }
     ) { padding ->
@@ -1042,38 +1056,14 @@ private fun formatSize(bytes: Long): String {
  */
 @Composable
 private fun TabToggle(selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
-    // v1.0.11：切换 Tab 改用液态玻璃材质（与主页卡片统一），选中态仍用主色胶囊
-    GlassSurface(
-        shape = RoundedCornerShape(20.dp),
+    // vc67：收敛到全站统一的玻璃分段 Tab —— 外框 Haze 真高斯模糊透出壁纸，
+    // 选中段为半透明琥珀染而非实心色块，材质与主页完全同源。
+    GlassTabBar(
+        labels = listOf("物品", "收藏"),
+        selectedIndex = selected,
+        onSelect = onSelect,
         modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = UiDimens.ListPad, vertical = 8.dp)
-    ) {
-        Row(modifier = Modifier.fillMaxWidth().padding(4.dp)) {
-            TabToggleButton("物品", selected = selected == 0) { onSelect(0) }
-            TabToggleButton("收藏", selected = selected == 1) { onSelect(1) }
-        }
-    }
-}
-
-@Composable
-private fun RowScope.TabToggleButton(label: String, selected: Boolean, onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        color = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
-        shape = RoundedCornerShape(16.dp),
-        modifier = Modifier.weight(1f).height(38.dp)
-    ) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-            Text(
-                label,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Medium,
-                color = if (selected) MaterialTheme.colorScheme.onPrimary
-                else MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
+    )
 }
 
 /* ───────────────── v2.0.0：自定义封面 ───────────────── */

@@ -40,6 +40,7 @@ import com.example.earthonline.util.nowIso
 import com.example.earthonline.util.todayStr
 import com.example.earthonline.util.uid
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -49,6 +50,7 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -415,6 +417,14 @@ class HomeViewModel @Inject constructor(
             .combine(customTitleFlow) { parts, title -> parts.copy(customTitle = title) }
             .combine(lastCelebratedFlow) { parts, lv -> parts.copy(lastCelebrated = lv) }
             .map { it.toUi() }
+            /* vc69（主页卡顿根治）：整条 20 级 combine + toUi() 映射此前跑在
+               viewModelScope（Dispatchers.Main）上 —— 每次任一下游数据变化
+               （任务计数 / 动态 / 相册数…）都在主线程做列表拼接、筛选、求比值，
+               这正是「滑动 / 跳转回来时主页顿一下」的 CPU 侧根因。
+               flowOn(Default) 必须放在 map **之后**（它只影响上游）：把全部
+               组合与映射搬到 CPU 密集的后台线程池，主线程只收到最终那份
+               HomeUiState；Room 查询本身另走自己的 executor。 */
+            .flowOn(Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 
     /* ---------------- 主页自定义：时间轴里程碑 / 动态流筛选 ---------------- */
@@ -555,6 +565,9 @@ class HomeViewModel @Inject constructor(
                 }
             }
         }
+        /* vc69：搜索同样把 combine / first() / buildHits() 全部搬离主线程 ——
+           flatMapLatest 之后统一 flowOn，内层流的上下文也随之切换。 */
+        .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private fun buildHits(

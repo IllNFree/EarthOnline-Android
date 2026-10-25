@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
@@ -331,17 +330,12 @@ fun MainScaffold(
                 )
                 } // vc64：hazeSource 容器闭合
             }
-            /* v1.0.14：顶部硬遮挡（应用户要求撤销状态栏沉浸透出壁纸的设计）。
-               状态栏区域（时间/电量处）用主题基础背景色实心填充 —— 绝不透出壁纸，
-               页面标题/列表从色块下方开始，不再被通知栏遮挡。
-               windowInsetsTopHeight 精确取状态栏高度，深浅色主题自动匹配。 */
-            Box(
-                Modifier
-                    .align(Alignment.TopCenter)
-                    .fillMaxWidth()
-                    .windowInsetsTopHeight(WindowInsets.statusBars)
-                    .background(MaterialTheme.colorScheme.background)
-            )
+            /* vc69（状态栏融合·死命令）：v1.0.14 的「顶部硬遮挡」实心色块已删除 ——
+               那块纯背景色盒子盖在状态栏上，而页面标题栏/Tab 是液态玻璃，
+               状态栏（纯色）与标题栏（玻璃）之间因此存在一道清晰的视觉断层。
+               现在各页顶部玻璃底板（GlassTopBar / 主页玻璃标题板）自身就延伸到
+               屏幕顶缘（内容在板内用 windowInsetsPadding 避让状态栏），
+               状态栏与标题栏共用同一块毛玻璃底板，断层随之消失。 */
             // 大屏/折叠屏适配：内容区限宽居中，避免展开态单列拉满全宽
             // 注入全局壁纸路径，供各处 GlassSurface 就地采样毛玻璃背景
             // v1.0.19：壁纸隐藏（0%）时注入 null —— 卡片玻璃同步退化为纯色底，视觉与背景一致

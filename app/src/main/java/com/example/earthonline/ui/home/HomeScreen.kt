@@ -255,18 +255,26 @@ fun HomeScreen(
     val homeListState = rememberLazyListState()
 
     Box(Modifier.fillMaxSize()) {
-        // v1.0.18（死命令 3）：顶部整块全幅出血 —— Column 包裹「实心顶块 + 内容列表」。
+        // v1.0.18（死命令 3）：顶部整块全幅出血 —— Column 包裹「玻璃顶板 + 内容列表」。
+        // vc69（状态栏融合·死命令）：原为「实心背景色顶块」，与二级页的玻璃顶栏材质割裂；
+        // 现改为与 GlassTopBar 完全同规格的液态玻璃底板 —— 顶部与屏幕齐平、
+        // 底部两角 24dp 圆角，玻璃自身延伸到状态栏区域，
+        // 标题内容在板内用 statusBarsPadding 避让 —— 状态栏与标题栏共用同一块毛玻璃。
         Column(Modifier.fillMaxSize()) {
-        // 状态栏 + 「地球Online」标题行合成一个不透明实心块：
-        // fillMaxWidth + statusBarsPadding 让背景色延伸到屏幕顶部与左右边缘；
-        // 标题内容自己的水平 padding 移到块内部，不再被 LazyColumn 的 contentPadding 内缩 —— 两侧绝不留缝。
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.background)
-                .statusBarsPadding()
+        GlassSurface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
+            contentAlignment = Alignment.TopStart,
+            // 顶栏文字必须清晰：玻璃底板偏实心（与 GlassTopBar 同档）
+            tintOverride = 0.92f,
+            scrimOverride = 0.46f
         ) {
-            Box(Modifier.padding(horizontal = UiDimens.ScreenPad, vertical = 8.dp)) {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(horizontal = UiDimens.ScreenPad, vertical = 8.dp)
+            ) {
                 HomeTitleBar(
                     actions = moreActions,
                     greeting = state.greeting
@@ -543,15 +551,18 @@ LazyColumn(
                         }
                     }
 
-                    // 3) 添加自定义动态 + 完整列表入口（v1.0.6.8：按钮文案补全为「+ 添加自定义」，
-                    //    主按钮权重加大 + 不截断，根除旧版「+ 添加自」文字截断问题）
+                    // 3) 添加自定义动态 + 完整列表入口
+                    // vc69（文字截断根治·死命令）：旧版主按钮文案「+ 添加自定义」在
+                    // 弹窗窄宽下被裁成「+ + 添加自」、次按钮「查看全部」被裁成「查看全」。
+                    // 现文案精简为「添加 / 查看全部」，两颗按钮统一 weight(1f) 等宽、
+                    // 同一圆角同一高度，文字 maxLines=1 且绝无省略号 —— 内部居中完整显示。
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Button(
                             onClick = { showStackEdit = false; showAddCustomAct = true },
-                            modifier = Modifier.weight(1.25f),
+                            modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = AmberPrimary,
                                 contentColor = OnAmber
@@ -560,7 +571,7 @@ LazyColumn(
                         ) {
                             Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text("+ 添加自定义", fontWeight = FontWeight.SemiBold, maxLines = 1)
+                            Text("添加", fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
                         }
                         OutlinedButton(
                             onClick = { showStackEdit = false; onNavigate("all_activities") },
@@ -571,7 +582,7 @@ LazyColumn(
                             border = BorderStroke(1.5.dp, AmberPrimary),
                             shape = RoundedCornerShape(12.dp)
                         ) {
-                            Text("查看全部", maxLines = 1)
+                            Text("查看全部", maxLines = 1, softWrap = false)
                         }
                     }
 

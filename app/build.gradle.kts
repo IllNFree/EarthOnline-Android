@@ -219,7 +219,16 @@ android {
         // ④ 性能：主页堆叠卡 pagerState.currentPageOffsetFraction 原在组合期读取导致逐帧重组，
         //    改为只在 graphicsLayer 内读取（读进绘制相位）；HomeViewModel 状态映射收敛；
         //    appearanceTuned 成就改为 cardOpacityTouched（用户是否真的调过）语义，不被新默认值误触发
-        versionCode = 68
+        // versionCode 69 = v2.0.0（状态栏融合 + 文字截断根治批 vc69）：
+        // ① 状态栏融合：删除 MainScaffold v1.0.14 的实心状态栏遮挡盒（纯色条与下方玻璃标题栏之间的
+        //    视觉断层根因）；主页顶部实心块改为与 GlassTopBar 同规格的液态玻璃底板，向上延伸包裹状态栏
+        // ② 堆叠设置按钮截断根治：「+ 添加自定义」→「添加」、「查看全部」保留，两颗按钮统一 weight(1f)
+        //    等宽 + 同圆角，文字 maxLines=1 无省略号，内部居中完整显示
+        // ③ 性能：HomeViewModel 全链路（20 级 combine + toUi + 搜索 first/buildHits）与
+        //    AchievementViewModel（54 条 toUi + 分类统计）加 flowOn(Dispatchers.Default)，
+        //    映射全部搬离主线程；GlassSurface 离屏渲染 / LazyColumn key+contentType / 滚动方向
+        //    derivedStateOf 只读进 graphicsLayer 均为既有项，本轮复核确认无回退
+        versionCode = 69
         versionName = "2.0.0"
         vectorDrawables { useSupportLibrary = true }
         // 高德 SDK 需要原生 so 库，按需裁剪 ABI（阶段3 接入地图前可放行全部）

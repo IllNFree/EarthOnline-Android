@@ -78,6 +78,8 @@ class AchievementViewModel @Inject constructor(
 
     val uiState: StateFlow<List<AchievementUi>> =
         combine(achievements, stats) { list, s -> list.map { it.toUi(s) } }
+            /* vc69：54 条成就的 toUi() 映射（含解锁态判定 / 进度计算）搬离主线程 */
+            .flowOn(kotlinx.coroutines.Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /** 分类概览（用于筛选 chip 上的计数） */
@@ -87,7 +89,8 @@ class AchievementViewModel @Inject constructor(
                 val sub = ui.filter { it.categoryId == c.id }
                 CategorySummary(c.id, c.label, c.icon, sub.count { it.entity.unlocked }, sub.size)
             }.filter { it.total > 0 }
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        }.flowOn(kotlinx.coroutines.Dispatchers.Default)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val unlockedCount: StateFlow<Int> =
         achievements.map { it.count { a -> a.unlocked } }

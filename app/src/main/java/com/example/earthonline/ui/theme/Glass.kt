@@ -110,24 +110,57 @@ private const val GLASS_NOISE_FACTOR = 0.06f
 
 enum class GlassTier { FULL, BLUR, FLAT }
 
-@Composable
-fun rememberGlassTier(): GlassTier {
-    val context = LocalContext.current
-    // isLowRamDevice 之外再加一道**总内存闸**：总内存 < 4GB 的机型即便系统未标记 low-RAM，
-    // GPU / 带宽也撑不住实时高斯，一律强制 FLAT（半透明纯色底板，零 GPU 模糊开销）。
-    val flatTier = remember {
-        runCatching {
-            val am = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
-            val info = android.app.ActivityManager.MemoryInfo()
-            am?.getMemoryInfo(info)
-            am?.isLowRamDevice == true || info.totalMem in 1 until 4_000_000_000L
-        }.getOrDefault(false)
+/**
+ * vc74（性能·死命令）：玻璃档位的**进程级**缓存。
+ *
+ * ## 为什么要缓存
+ * 旧实现把「总内存闸」放进 [rememberGlassTier] 的 `remember {}` 里 —— 而
+ * [rememberGlassTier] 是**每张玻璃卡**各调一次的（[GlassSurface] 里调用）。
+ * 后果：主页一页有 20~40 张玻璃卡（速览瓦片 + 资料卡 + 堆叠卡 + 日历 + 动态流 + 时间轴…），
+ * 于是**每张卡各做一次 `ActivityManager.getMemoryInfo()`** ——
+ * 那是一次跨进程 binder 调用，服务端还要现场解析 `/proc/meminfo`（毫秒级）。
+ * 主页首屏 = 20~40 次；更要命的是 **LazyColumn 滑动时 Item 被回收 / 重新组合**，
+ * 滚上滚下会让这些卡反复重建 ⇒ 每一次「卡被重新组合」都要再付一次 binder 调用。
+ * 这就是「滑动时莫名其妙卡一下」的**状态风暴实锤**（与滚动状态无关的、
+ * 藏在每张卡里的系统服务风暴）。
+ *
+ * ## 现在怎么做
+ * 档位是**设备级常量**（机型内存 24 小时不变），没有任何理由按卡片重算。
+ * 现改为：首次访问时算一次，**进程内共享**（[GlassTierCache]），
+ * 之后每张卡只读一个已缓存的值 —— binder 调用从「每卡一次」降为「整个进程一次」。
+ */
+private object GlassTierCache {
+    @Volatile
+    var value: GlassTier? = null
+
+    fun get(context: Context): GlassTier {
+        value?.let { return it }
+        return synchronized(this) {
+            value ?: computeGlassTier(context).also { value = it }
+        }
     }
+}
+
+/** vc74：从系统服务读取内存信息并推导玻璃档位（**整个进程只应被调用一次**）。 */
+private fun computeGlassTier(context: Context): GlassTier {
+    val flatTier = runCatching {
+        val am = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+        val info = android.app.ActivityManager.MemoryInfo()
+        am?.getMemoryInfo(info)
+        am?.isLowRamDevice == true || info.totalMem in 1 until 4_000_000_000L
+    }.getOrDefault(false)
     return when {
         Build.VERSION.SDK_INT >= 33 && !flatTier -> GlassTier.FULL
         Build.VERSION.SDK_INT >= 31 && !flatTier -> GlassTier.BLUR
         else -> GlassTier.FLAT
     }
+}
+
+@Composable
+fun rememberGlassTier(): GlassTier {
+    val context = LocalContext.current
+    // 缓存命中时只是一次 volatile 读 + 一次 remember，不再触碰 binder
+    return remember(context) { GlassTierCache.get(context) }
 }
 
 /**
@@ -172,8 +205,13 @@ fun GlassSurface(
 
     // 滚动降级：只降半径，绝不关模糊（关模糊会造成视觉跳变）
     val blurRadiusDp = (GLASS_BLUR_RADIUS_DP * blurScale).coerceAtLeast(0.dp)
+    // vc74：**先把档位读成局部 val，再参与布尔运算** ——
+    // 旧写法把 rememberGlassTier() 放在 `&&` 短路链末尾，属「条件式读取 CompositionLocal /
+    // 条件式 remember」，既可能在开关切换时丢失状态，也让读订阅行为不确定。
+    // 现在无条件读一次（命中进程级缓存，零 binder 调用），再参与判断。
+    val glassTier = rememberGlassTier()
     val blurOn = liquid && blurRadiusDp > 0.5.dp && Build.VERSION.SDK_INT >= 31 &&
-            rememberGlassTier() != GlassTier.FLAT
+            glassTier != GlassTier.FLAT
 
     val fxRadiusPx = with(LocalDensity.current) { fxRadius.toPx() }
 

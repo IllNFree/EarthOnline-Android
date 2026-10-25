@@ -1519,11 +1519,45 @@ private fun OverviewGrid(
     var sortMode by remember { mutableStateOf(false) }
 
     // 严格按用户自定义顺序排序；entryOrder 没有的 id 追加到末尾（防索引越界 / 渲染错乱）
+    // vc74（游戏库卡片找回·死命令）：**新出现的入口不能一律堆到末尾** ——
+    // 老用户持久化的 entryOrder 是「游戏库」入口被漏掉时写下的（11 项，无 games）；
+    // 若把补回的 games 一律追加到队尾，它会排在第 12 位 → 落在收起态 3×2 网格之外，
+    // 用户看到的仍是「游戏库卡片丢失 / 被遮挡」。
+    // 现改为：老顺序里的项**严格保持用户的相对次序**（用户意图不动），
+    // 而新出现的项**插回它在自然顺序里的邻居位置**（找最近的前驱插其后，没有前驱则插到后继之前）。
+    // 例：自然序 daily,todo,items,collections,notes,games,album,…
+    //     老序 daily,todo,items,collections,notes,album,… ⇒ games 插在 notes 与 album 之间 ⇒ 落在第 6 格。
     val orderedEntries = remember(state.quickEntries, state.entryOrder) {
         val order = state.entryOrder
         val inOrder = order.mapNotNull { id -> visible.firstOrNull { it.id == id } }
         val rest = visible.filter { it.id !in order }
-        inOrder + rest
+        if (rest.isEmpty()) {
+            inOrder
+        } else {
+            val natural = visible.map { it.id }
+            val resultIds = inOrder.map { it.id }.toMutableList()
+            rest.forEach { e ->
+                val id = e.id
+                val natIdx = natural.indexOf(id)
+                var pos = -1
+                // ① 最近的自然前驱（若它已在结果里）→ 插到它后面
+                for (i in natIdx - 1 downTo 0) {
+                    val p = resultIds.indexOf(natural[i])
+                    if (p >= 0) { pos = p + 1; break }
+                }
+                // ② 没有前驱 → 插到最近的自然后继之前
+                if (pos < 0) {
+                    for (i in natIdx + 1 until natural.size) {
+                        val p = resultIds.indexOf(natural[i])
+                        if (p >= 0) { pos = p; break }
+                    }
+                }
+                // ③ 都没有 → 追加到末尾
+                if (pos < 0) pos = resultIds.size
+                resultIds.add(pos, id)
+            }
+            resultIds.mapNotNull { id -> visible.firstOrNull { it.id == id } }
+        }
     }
 
 

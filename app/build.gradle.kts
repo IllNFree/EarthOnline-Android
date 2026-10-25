@@ -255,7 +255,18 @@ android {
         // ③ 顺序与位置异常排查：严格按用户自定义 List 渲染，收起态 take(6) 与展开态 drop(6) 同一套瓦片 / 跳转逻辑，
         //   排序态隐藏收起网格避免与排序网格重复首 6 项，防硬编码位置索引越界 / 渲染错乱。
         // ④ 满血液态玻璃视觉零降级（不关特效）。
-        versionCode = 73
+        // versionCode 74 = v2.0.0（速览游戏库找回 + 主页卡顿实测根治批 vc74）：
+        // ① 游戏库卡片找回（根因在**数据源**，非布局）：DEFAULT_QUICK_ENTRIES 与 migrateQuickEntries
+        //   两条路径都漏了「games」键 —— 全新安装回落默认集合不含 games、老用户持久化集合迁移也不含 games，
+        //   导致 visible 过滤后该瓦片**根本不存在**（不是被遮挡）。两条路径同时补回 games。
+        // ② 速览顺序合并算法：新出现的入口不再一律堆到队尾（会被挤出收起态 3×2 网格 = 用户看到的「被遮挡」），
+        //   改为插回它在自然顺序里的邻居位置，老顺序里已有项的相对次序（用户意图）完全不动。
+        // ③ 玻璃档位提升为**进程级**单例（性能·死命令）：旧实现把 ActivityManager.getMemoryInfo()
+        //   放进每张玻璃卡各自的 remember 里 —— 主页一页 20~40 张卡 = 每卡一次跨进程 binder 调用
+        //   （服务端还要现场解析 /proc/meminfo），LazyColumn 滑动时 Item 回收重建 → 反复再付一次。
+        //   这是与滚动状态无关、藏在每张卡里的「系统服务风暴」。现整个进程只算一次。
+        // ④ 修掉 GlassSurface 里 rememberGlassTier() 位于 && 短路链末尾的「条件式读取」隐患。
+        versionCode = 74
         versionName = "2.0.0"
         vectorDrawables { useSupportLibrary = true }
         // 高德 SDK 需要原生 so 库，按需裁剪 ABI（阶段3 接入地图前可放行全部）

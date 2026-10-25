@@ -200,15 +200,27 @@ private data class ItemStat(val total: Int, val categories: Int)
 private data class LocStat(val total: Int, val recent: List<LocationEntity>)
 
 /** 主页速览全部入口 id（与 HomeScreen 的 HomeEntry 一一对应；DataStore 空值回落全集）。
- *  v1.0.7：新增「数据」入口（data），默认收进「更多」收纳区，确保数据看板在首页有入口。 */
-internal val DEFAULT_QUICK_ENTRIES = setOf("daily", "todo", "items", "collections", "notes", "album", "achievements", "map", "accounting", "ai", "data")
+ *  v1.0.7：新增「数据」入口（data），默认收进「更多」收纳区，确保数据看板在首页有入口。
+ *  vc74（游戏库卡片丢失根治）：**补回「游戏库」入口（games）** ——
+ *  v1.0.6.2 起「游戏库」就已在主页速览有卡片（HomeScreen 的 allEntries 里 games 项），
+ *  但当初只改了 UI 清单，**漏改了这份默认集合**，导致：
+ *   ① 全新安装：DataStore 为空 → 回落本集合 → games 不在其中 → 游戏库卡片**完全不渲染**；
+ *   ② 升级老用户：持久化集合被 migrateQuickEntries 处理，但该迁移同样漏了 games → 仍然不渲染。
+ *  两条路径叠加 ⇒ 「游戏库卡片丢失」在所有用户身上都必现（且因为 visible 过滤，
+ *  它不是被遮挡，而是整个瓦片不存在）。
+ *  这里补上 games，让默认集合与 UI 清单重新对齐。 */
+internal val DEFAULT_QUICK_ENTRIES = setOf("daily", "todo", "items", "collections", "notes", "games", "album", "achievements", "map", "accounting", "ai", "data")
 
 /** v1.0.6.7（入口拆分）：把旧版持久化的速览键迁移到拆分后的新键，防止老用户升级后入口消失。
- *  tasks → daily + todo；backpack → items + collections。 */
+ *  tasks → daily + todo；backpack → items + collections。
+ *  vc74：补 **games → games**（保持键不变，仅确保老用户持久化集合里补回游戏库入口，
+ *  否则 games 只在「DataStore 为空」的全新安装里出现，老用户永远看不到）。 */
 internal fun migrateQuickEntries(src: Set<String>): Set<String> {
     val out = src.toMutableSet()
     if ("tasks" in out) { out -= "tasks"; out += "daily"; out += "todo" }
     if ("backpack" in out) { out -= "backpack"; out += "items"; out += "collections" }
+    // vc74：老用户持久化集合里补回「游戏库」入口（v1.0.6.2 引入 UI 时漏写迁移）
+    out += "games"
     return out
 }
 

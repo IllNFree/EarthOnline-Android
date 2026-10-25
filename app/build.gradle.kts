@@ -229,6 +229,9 @@ android {
         //    映射全部搬离主线程；GlassSurface 离屏渲染 / LazyColumn key+contentType / 滚动方向
         //    derivedStateOf 只读进 graphicsLayer 均为既有项，本轮复核确认无回退
         // versionCode 70 = v2.0.0（壁纸 GPU 采样过载根治批 vc70）：
+        // versionCode 71 = v2.0.0（主页卡顿终极根治批 vc71）：每卡离屏缓冲上移到全站唯一内容根
+        //   （渲染通道从 N 张收敛到 1 张，GPU 吞吐根因拔除）+ 二级页 Tab 取消独立背景与标题同玻璃
+        //   + 动画/复用/采样源审计确认无需降级视觉
         // ① 壁纸降采样（治本）：MainScaffold 改显式 ImageRequest（size=屏幕像素 +
         //    Precision.INEXACT），12MP 原图绝不上 GPU，解码位图恒 ≤ 一块屏幕
         // ② Haze 输入降采样（核心）：GlassSurface 的 hazeEffect 显式设置
@@ -239,7 +242,7 @@ android {
         //    compositingStrategy = Offscreen —— 缓存层级本就正确，未加冗余全屏层
         //    （那会白增一块全屏离屏缓冲 + 每帧一次全屏合成，反而更卡）
         // ⑤ 过度绘制审计：卡片均为单层玻璃，内部仅小型徽章填充，无冗余全幅半透明叠层
-        versionCode = 70
+        versionCode = 71
         versionName = "2.0.0"
         vectorDrawables { useSupportLibrary = true }
         // 高德 SDK 需要原生 so 库，按需裁剪 ABI（阶段3 接入地图前可放行全部）

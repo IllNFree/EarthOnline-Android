@@ -32,8 +32,9 @@ import com.example.earthonline.ui.theme.AmberPrimary
  *
  * 因此现在的形态是：
  *  - 外壳 = [GlassTopBar] 的整块玻璃底板（标题 + Tab 同属一块玻璃）；
- *  - 本组件 = 玻璃底板上的一层**半透明内衬**（极淡 surface 染 + 1dp 描边），
- *    选中段为半透明琥珀染 + 描边 —— 选中态依旧一眼可辨，但不再有实心色块。
+ *  - 本组件 = 玻璃底板上的**无边框分段**（vc71 起已移除自身的半圆角内衬背景/描边，
+ *    不再"玻璃里又套一块玻璃"）；选中段仅以半透明琥珀染 + 描边区分，
+ *    标题与 Tab 同处一块玻璃、同一条视觉基线，层级完全对齐。
  *
  * ## 统一规格
  *  - 段高固定 38dp、圆角 16dp、段间 4dp —— 全站二级页 Tab 行高度完全一致；
@@ -58,13 +59,12 @@ fun GlassTabBar(
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(18.dp))
-                // 内衬：极淡的 surface 染 + 1dp 描边 —— 在玻璃底板上给出"容器"轮廓，
-                // 但自身不再做一次模糊（避免玻璃套玻璃的双重开销与灰缝）
-                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.16f))
-                .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f), RoundedCornerShape(18.dp))
-                .padding(4.dp),
+                .fillMaxWidth(),
+            // vc71（致命点·Tab 层级对齐）：**移除 Tab 自身那层独立内衬背景/描边** ——
+            // 此前它是一个 surface 0.16f 圆角胶囊，叠在玻璃顶栏里像"玻璃里又套了一块玻璃"，
+            // 视觉上比标题更"实"、层级错位，正是用户反馈的「Tab 单独突兀背景」。
+            // 现在段直接落在 GlassTopBar 的同一块玻璃底板上，只靠选中段的琥珀染区分，
+            // 标题与 Tab 真正同处一块玻璃、同一条视觉基线。
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             labels.forEachIndexed { index, label ->

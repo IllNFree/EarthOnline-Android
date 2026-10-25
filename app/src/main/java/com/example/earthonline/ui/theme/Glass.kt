@@ -22,7 +22,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
@@ -183,9 +182,13 @@ fun GlassSurface(
             /* 圆弧裁剪必须排在整条链最前：Haze 的模糊层、底色、高光、描边、内容
                全部被锁进同一个圆角里，任何调用点都不可能再出现方形直角。 */
             .clip(shape)
-            // vc67（极限性能·禁用降级）：强制 GPU 离屏缓冲 —— 满血液态玻璃下把重绘压力
-            // 收敛到一张离屏层，滚动时不再每帧重算整张玻璃，卡顿根因直接消除。
-            .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+            // vc71（死命令·致命点3 根治）：**不再在每个卡片上挂离屏缓冲**。
+            // 旧版（vc67）在每张 GlassSurface 单独开一张 GPU 离屏层 —— 屏幕上 6~7 张玻璃卡 =
+            // 每帧 6~7 次离屏渲染 + 6~7 张常驻纹理，显存与带宽被卡片数线性拖垮，
+            // 正是「有壁纸（多卡同屏）才卡、纯色（少卡）不卡」的真凶。
+            // 现在离屏缓冲只挂在**内容根**（MainScaffold 的 AppNavHost，见 MainScaffold.kt），
+            // 全站所有玻璃共享「一张全屏离屏层」，渲染通道从 N 张降到 1 张；
+            // 模糊采样层级不变（仍走 Haze 共享静态壁纸源），视觉 100% 无损。
             .then(if (onClick != null) Modifier.bouncyClickable(onClick = onClick) else Modifier)
             // ① 纯色兜底：无壁纸 / API<31 / 低内存 / 用户关特效时，这就是最终的卡片底色
             .background(scheme.surface.copy(alpha = if (solid) 0.97f else cardAlpha))
@@ -320,7 +323,8 @@ fun ProvideHazeBlurScale(scale: Float, content: @Composable () -> Unit) {
  *
  * 现在滑动时液态玻璃 **100% 满血保持** —— 绝不妥协视觉：
  * 关模糊 / 降半径都比掉帧更刺眼。满血下的流畅由三件事共同保证：
- *  ① [GlassSurface] 的 `graphicsLayer { compositingStrategy = Offscreen }` 强制 GPU 离屏缓冲；
+ *  ① 离屏缓冲只挂在**内容根**（MainScaffold 的 AppNavHost），全站玻璃共享「一张全屏离屏层」，
+ *    [GlassSurface] 自身不再各自开离屏层（vc67 的每卡离屏正是「有壁纸才卡」的 GPU 吞吐根因，vc71 已拔除）；
  *  ② 滚动方向等高频信号一律走 `derivedStateOf` 派生（见 ui/components/ScrollKit.kt）；
  *  ③ 滚动过程中不读取任何随滚动变化的状态，整页不因滑动而重组。
  */

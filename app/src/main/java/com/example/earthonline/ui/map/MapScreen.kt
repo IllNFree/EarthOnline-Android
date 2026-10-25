@@ -54,6 +54,7 @@ import com.example.earthonline.ui.components.AnimatedAlertDialog
 import com.example.earthonline.ui.components.GlassDialog
 import com.example.earthonline.ui.components.GlassTextField
 import com.example.earthonline.ui.components.MoreMenuActions
+import com.example.earthonline.ui.components.GlassTopBar
 import com.example.earthonline.ui.theme.AmberPrimary
 import com.example.earthonline.util.LocationHelper
 import com.example.earthonline.util.LocateError
@@ -264,8 +265,7 @@ fun MapScreen(vm: MapViewModel, moreActions: MoreMenuActions) {
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+            GlassTopBar(
                 title = { Text("足迹地图") },
                 actions = {
                     // v1.0.6.9：POI 搜索已改为顶部常驻搜索栏（就地输入、就地出结果），

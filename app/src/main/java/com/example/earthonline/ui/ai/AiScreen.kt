@@ -31,6 +31,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.earthonline.ui.components.GlassTextField
 import com.example.earthonline.ui.components.ModuleTints
 import com.example.earthonline.ui.components.MoreMenuActions
+import com.example.earthonline.ui.components.GlassTopBar
 import com.example.earthonline.ui.settings.AiConfigDialog
 import com.example.earthonline.ui.theme.GlassSurface
 import kotlinx.coroutines.launch
@@ -84,8 +85,7 @@ fun AiScreen(vm: AiViewModel, moreActions: MoreMenuActions) {
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+            GlassTopBar(
                 title = { Text("系统") },
                 actions = {
                     IconButton(onClick = { showConfig = true }) {

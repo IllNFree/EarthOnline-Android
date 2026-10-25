@@ -73,6 +73,7 @@ import com.example.earthonline.ui.components.TrackScrollBlur
 import androidx.compose.foundation.lazy.rememberLazyListState
 import com.example.earthonline.ui.theme.AmberPrimary
 import com.example.earthonline.ui.components.GlassTabBar
+import com.example.earthonline.ui.components.GlassTopBar
 import com.example.earthonline.ui.theme.AppCard
 import com.example.earthonline.ui.theme.pressScaleClickable
 import com.example.earthonline.ui.theme.pressScaleCombinedClickable
@@ -151,10 +152,10 @@ fun BackpackScreen(
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(
+            // vc68：全局统一液态玻璃顶栏 —— 标题与 Tab 同属一块玻璃底板，
+            // 视觉高度与其它二级页严格对齐。
+            GlassTopBar(
                 title = { Text("背包") },
-                // v1.0.11：Header 透明化，与主页一致透出壁纸，去掉顶部悬浮覆盖感
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 actions = {
                     /* vc64：收藏页右上角独立的「游戏库」图标按钮 ——
                        Steam 入口从收藏列表主体里彻底移出，不再占用一条列表位、
@@ -170,6 +171,14 @@ fun BackpackScreen(
                     IconButton(onClick = { showCategoryManager = true }) {
                         Icon(Icons.Rounded.Tune, contentDescription = "分类管理")
                     }
+                },
+                tab = {
+                    // 顶层 Tab：物品 / 收藏 —— 与标题同处一块玻璃，材质与主页同源
+                    GlassTabBar(
+                        labels = listOf("物品", "收藏"),
+                        selectedIndex = tab,
+                        onSelect = { tab = it }
+                    )
                 }
             )
         },
@@ -192,7 +201,7 @@ fun BackpackScreen(
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            TabToggle(selected = tab, onSelect = { tab = it })
+            // vc68：顶层 Tab（物品 / 收藏）已上移进玻璃顶栏，与标题同属一块玻璃底板。
             if (tab == 0) {
                 ItemsPane(
                     items = items,
@@ -1046,24 +1055,6 @@ private fun formatSize(bytes: Long): String {
         bytes < 1024 * 1024 -> "${bytes / 1024} KB"
         else -> String.format("%.1f MB", bytes / (1024.0 * 1024.0))
     }
-}
-
-/**
- * v1.2.3：物品 / 收藏 切换由 Material 顶部 Tab 改为「胶囊分段控件」。
- * 原来两个 Tab 之间有一条贯穿的指示线，视觉上把页面「切」成两半；
- * 现在用同一颗药丸里两段等分的按铃，选中段填主题暖色，整体是一个连续控件，
- * 切换时不再有「分割感」。
- */
-@Composable
-private fun TabToggle(selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
-    // vc67：收敛到全站统一的玻璃分段 Tab —— 外框 Haze 真高斯模糊透出壁纸，
-    // 选中段为半透明琥珀染而非实心色块，材质与主页完全同源。
-    GlassTabBar(
-        labels = listOf("物品", "收藏"),
-        selectedIndex = selected,
-        onSelect = onSelect,
-        modifier = modifier
-    )
 }
 
 /* ───────────────── v2.0.0：自定义封面 ───────────────── */

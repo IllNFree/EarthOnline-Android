@@ -1150,15 +1150,21 @@ private fun HomeStack(
             pageSpacing = 12.dp,
             beyondViewportPageCount = 1
         ) { page ->
-            // 页偏移（0 = 当前页，1 = 相邻页）：驱动缩放 / 下移 / 透明度的堆叠景深
-            val pageOffset = kotlin.math.abs(
-                (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
-            )
             GlassCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(cardHeight)
+                    // vc68（性能·滑动跟手）：页偏移**只在 graphicsLayer 内读取**。
+                    // 此前在组合期算出 pageOffset 再喂给图层 —— 滑动时每一帧都会
+                    // 失效「整棵卡片子树」的重组（玻璃卡 + 内层列表全部重画），
+                    // 这正是主页左右滑动掉帧的根因。
+                    // 放进 graphicsLayer 后读取变成**绘制期读**：滑动时只更新
+                    // 图层属性，组合零重组 —— 与 ScrollKit 的 FAB 缩放同一套手法。
                     .graphicsLayer {
+                        // 页偏移（0 = 当前页，1 = 相邻页）：驱动缩放 / 下移 / 透明度的堆叠景深
+                        val pageOffset = kotlin.math.abs(
+                            (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
+                        )
                         val f = pageOffset.coerceIn(0f, 1f)
                         val s = 1f - f * 0.07f
                         scaleX = s

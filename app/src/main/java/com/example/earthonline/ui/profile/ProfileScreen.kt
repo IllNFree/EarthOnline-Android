@@ -36,6 +36,7 @@ import com.example.earthonline.ui.components.UiDimens
 import com.example.earthonline.ui.theme.AmberPrimary
 import com.example.earthonline.ui.theme.GlassCard
 import com.example.earthonline.ui.components.UserAvatar
+import com.example.earthonline.ui.components.GlassTopBar
 import com.example.earthonline.util.IMAGE_TYPES_HINT
 import com.example.earthonline.util.ImageStore
 import com.example.earthonline.util.ShareCardRenderer
@@ -122,8 +123,7 @@ fun ProfileScreen(vm: ProfileViewModel, moreActions: MoreMenuActions) {
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+            GlassTopBar(
                 title = { Text("个人资料") },
                 actions = {
                     if (editing) {

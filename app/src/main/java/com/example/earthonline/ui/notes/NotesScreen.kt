@@ -1,7 +1,6 @@
 package com.example.earthonline.ui.notes
 
 import com.example.earthonline.ui.components.AnimatedAlertDialog
-import com.example.earthonline.ui.components.bouncyClickable
 import com.example.earthonline.ui.components.bouncyPress
 
 import androidx.compose.foundation.background
@@ -41,6 +40,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.earthonline.data.local.entity.MemoEntity
 import com.example.earthonline.ui.components.EmptyHint
 import com.example.earthonline.ui.components.GlassDialog
+import com.example.earthonline.ui.components.GlassTopBar
 import com.example.earthonline.ui.components.GlassTextField
 import com.example.earthonline.ui.components.MoreMenuActions
 import com.example.earthonline.ui.components.ScrollDirection
@@ -49,7 +49,6 @@ import com.example.earthonline.ui.components.UiDimens
 import androidx.compose.foundation.lazy.rememberLazyListState
 import com.example.earthonline.ui.theme.AppCard
 import com.example.earthonline.ui.theme.AmberPrimary
-import com.example.earthonline.ui.theme.GlassSurface
 import com.example.earthonline.ui.theme.OnAmber
 import kotlinx.coroutines.launch
 
@@ -92,14 +91,11 @@ fun NotesScreen(
     val folderMap by vm.folderMap.collectAsStateWithLifecycle(initialValue = emptyMap())
 
     var toDelete by remember { mutableStateOf<String?>(null) }
-    // vc66：右下角悬浮「+」与「新建分类」弹窗整体下线 —— 新建笔记入口收敛为
-    // 每个分类右侧的独立「+」按钮；新建分类入口收敛进编辑页的分类选择弹窗。
     // v1.0.6.11：顶栏「分类管理」入口保留（重命名 / 删除）
     var showFolderManager by remember { mutableStateOf(false) }
-    // vc67：右下角 FAB 的新建面板（新建笔记 / 新建分类）
-    var showCreateSheet by remember { mutableStateOf(false) }
-    // vc67：FAB →「新建分类」后的命名弹窗
-    var showNewFolderDialog by remember { mutableStateOf(false) }
+    // vc68：FAB 的新建入口改为**居中固定大小 Dialog**（与背包页 ItemDialog 同风格），
+    // 且不再询问"新建分类还是新建笔记"—— 一律直接走新建笔记流程。
+    var showNewNoteDialog by remember { mutableStateOf(false) }
     var manageFolder by remember { mutableStateOf<NoteFolder?>(null) }
     var confirmDeleteFolder by remember { mutableStateOf<NoteFolder?>(null) }
     var moveTarget by remember { mutableStateOf<MemoEntity?>(null) }
@@ -121,27 +117,28 @@ fun NotesScreen(
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(
+            // vc68：全局统一液态玻璃顶栏（标题 + 玻璃底板），与主页材质同源
+            GlassTopBar(
                 title = { Text("笔记") },
-                // v1.0.11：Header 透明化，与主页一致透出壁纸，去掉顶部悬浮覆盖感
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 actions = {
-                    // v1.0.6.11：分类管理入口（对齐背包页右上角 Tune 图标）
-                    // vc62：搜索改为页面顶部常驻搜索框（对齐背包页），顶栏搜索开关移除
+                    // v1.0.6.11：分类管理入口（重命名 / 删除）
+                    // vc68：新建分类与分类管理统一收进这个右上角图标
                     IconButton(onClick = { showFolderManager = true }) {
                         Icon(Icons.Rounded.Tune, contentDescription = "分类管理")
                     }
                 }
             )
         },
-        // vc67：补回右下角「+」悬浮按钮 —— 点开底部面板，可新建笔记 / 新建分类。
-        // 与任务页、背包页的 FAB 同一套视觉（圆形 + 琥珀色 + 按压回弹）。
+        // vc68：补回右下角「+」悬浮按钮。
+        // **逻辑理顺**：点击后**直接进入新建笔记流程**（居中固定大小 Dialog，与背包页
+        // ItemDialog 同风格），不再像 vc67 那样先弹一张「新建笔记 / 新建分类」二选一
+        // 抽屉 —— 多一次点击、且把用户的真实意图（写笔记）藏了起来。
         // 滚动方向用 derivedStateOf 派生，且**只读进 graphicsLayer**：
         // 滑动时只改图层属性，零重组 —— 满血液态玻璃下也不掉帧。
         floatingActionButton = {
             val scrollDir = rememberScrollDirection(listState)
             FloatingActionButton(
-                onClick = { showCreateSheet = true },
+                onClick = { showNewNoteDialog = true },
                 containerColor = AmberPrimary,
                 contentColor = OnAmber,
                 shape = CircleShape,
@@ -152,7 +149,7 @@ fun NotesScreen(
                         scaleX = s
                         scaleY = s
                     }
-            ) { Icon(Icons.Rounded.Add, contentDescription = "新建") }
+            ) { Icon(Icons.Rounded.Add, contentDescription = "新建笔记") }
         }
     ) { padding ->
         Column(
@@ -349,93 +346,86 @@ fun NotesScreen(
 
     } // vc66：外层 Box（原新建面板覆盖层已下线）闭合
 
-    // —— vc67：右下角 FAB 的新建面板 ——
-    // 两个入口：「新建笔记」直接进编辑器（未分类），「新建分类」就地起一个新分类。
-    // 两者都用玻璃材质（GlassSurface），与全站弹层口径一致。
-    if (showCreateSheet) {
-        ModalBottomSheet(
-            onDismissRequest = { showCreateSheet = false },
-            containerColor = Color.Transparent,
-            contentColor = MaterialTheme.colorScheme.onSurface
-        ) {
-            GlassSurface(
-                shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 18.dp, vertical = 14.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        "新建",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    // 新建笔记
-                    SheetActionRow(
-                        icon = Icons.Rounded.EditNote,
-                        title = "新建笔记",
-                        subtitle = "先写内容，分类可在编辑器里选"
-                    ) {
-                        showCreateSheet = false
-                        onEdit(null, null)
-                    }
-                    // 新建分类
-                    SheetActionRow(
-                        icon = Icons.Rounded.FolderOpen,
-                        title = "新建分类",
-                        subtitle = "建好分类后，在里面写笔记"
-                    ) {
-                        showCreateSheet = false
-                        showNewFolderDialog = true
-                    }
-                }
-            }
-        }
-    }
-
-    // 新建分类的命名弹窗（FAB → 新建分类 → 输入名称）
-    if (showNewFolderDialog) {
-        var folderName by remember { mutableStateOf("") }
-        GlassDialog(onDismissRequest = { showNewFolderDialog = false }) {
+    // —— vc68：新建笔记（**居中固定大小 Dialog**，与背包页 ItemDialog 同风格）——
+    // 逻辑理顺：FAB 点开就是「写笔记」这件事本身（标题 + 分类），
+    // 不再像 vc67 那样先弹一张「新建笔记 / 新建分类」二选一抽屉 ——
+    // 那张抽屉把用户的真实意图藏了起来，还多一次点击。
+    // 「新建分类 / 管理分类」统一收进右上角图标按钮（见 showFolderManager 弹窗）。
+    if (showNewNoteDialog) {
+        var draftTitle by remember { mutableStateOf("") }
+        var draftFolderId by remember { mutableStateOf<String?>(null) }
+        GlassDialog(onDismissRequest = { showNewNoteDialog = false }) {
             Column(
                 Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text("新建分类", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("新建笔记", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 GlassTextField(
-                    value = folderName,
-                    onValueChange = { folderName = it.take(20) },
-                    label = "分类名称",
+                    value = draftTitle,
+                    onValueChange = { draftTitle = it.replace("\n", "").take(60) },
+                    label = "标题（可留空）",
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
+                Text(
+                    "归入分类",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                // 分类单选行：未分类 + 全部已有分类（横向滚动，单行不换行）
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    FilterChip(
+                        selected = draftFolderId == null,
+                        onClick = { draftFolderId = null },
+                        label = { Text("未分类", maxLines = 1) }
+                    )
+                    folders.forEach { f ->
+                        FilterChip(
+                            selected = draftFolderId == f.id,
+                            onClick = { draftFolderId = f.id },
+                            label = { Text(f.name, maxLines = 1) }
+                        )
+                    }
+                }
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     OutlinedButton(
-                        onClick = { showNewFolderDialog = false },
+                        onClick = { showNewNoteDialog = false },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp)
                     ) { Text("取消", maxLines = 1) }
                     Button(
                         onClick = {
-                            val id = vm.createFolder(folderName)
-                            showNewFolderDialog = false
-                            // 建好即进编辑器，并已归入新分类
-                            if (id.isNotBlank()) onEdit(null, id)
+                            val t = draftTitle.trim()
+                            scope.launch {
+                                if (t.isBlank()) {
+                                    // 没起标题 → 直接开一个空白新笔记去写
+                                    showNewNoteDialog = false
+                                    onEdit(null, draftFolderId)
+                                } else {
+                                    // 起了标题 → 先落一条「只有标题」的笔记，
+                                    // 立刻带着它进编辑器继续写正文（标题已就位，不必再输一遍）
+                                    val id = vm.saveNote(null, t, emptyList(), "# $t\n\n")
+                                    if (id.isNotBlank()) vm.assignFolder(id, draftFolderId)
+                                    showNewNoteDialog = false
+                                    onEdit(id.ifBlank { null }, draftFolderId)
+                                }
+                            }
                         },
-                        enabled = folderName.isNotBlank(),
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = AmberPrimary,
                             contentColor = OnAmber
                         ),
                         shape = RoundedCornerShape(12.dp)
-                    ) { Text("创建并写笔记", fontWeight = FontWeight.SemiBold, maxLines = 1) }
+                    ) { Text("开始写", fontWeight = FontWeight.SemiBold, maxLines = 1) }
                 }
             }
         }
@@ -519,8 +509,12 @@ fun NotesScreen(
         )
     }
 
-    // —— 顶栏「分类管理」：集中管理全部笔记分类（对齐背包页右上角入口）——
+    // —— vc68：顶栏右上角图标 →「分类」管理弹窗 ——
+    // 「新建分类」与「管理分类」两个功能**统一收进这里**（vc67 时它们还散落在
+    // FAB 的二选一抽屉里）。弹窗内先给「新建分类」一行快捷输入，
+    // 下面列出全部分类供重命名 / 删除 —— 一个入口管完分类，不再到处找。
     if (showFolderManager) {
+        var newFolderName by remember { mutableStateOf("") }
         GlassDialog(onDismissRequest = { showFolderManager = false }) {
             Column(
                 Modifier.fillMaxWidth(),
@@ -528,10 +522,38 @@ fun NotesScreen(
             ) {
                 // vc63（真机闪退根治）：这里绝不能再套 verticalScroll —— 外层 GlassDialog
                 // 内容列已自带滚动，内层在无限高约束下测量直接抛异常（点「分类管理」必闪退的真凶）。
-                Text("分类管理", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("分类", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                // —— 新建分类（就地起名，回车即建）——
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    GlassTextField(
+                        value = newFolderName,
+                        onValueChange = { newFolderName = it.replace("\n", "").take(20) },
+                        label = "新分类名称",
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Button(
+                        onClick = {
+                            if (newFolderName.isNotBlank()) {
+                                vm.createFolder(newFolderName)
+                                newFolderName = ""
+                            }
+                        },
+                        enabled = newFolderName.isNotBlank(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AmberPrimary,
+                            contentColor = OnAmber
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) { Text("新建", maxLines = 1) }
+                }
                 if (folders.isEmpty()) {
                     Text(
-                        "还没有分类，点下方按钮新建一个。",
+                        "还没有分类，在上面输入名称即可新建。",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -555,7 +577,6 @@ fun NotesScreen(
                         }
                     }
                 }
-                // vc66：「新建分类」按钮移除 —— 新建分类统一收敛到编辑页的分类选择弹窗
             }
         }
     }
@@ -627,52 +648,6 @@ fun NotesScreen(
                 }
             }
         }
-    }
-}
-
-/**
- * vc67：新建面板里的一行入口（图标 + 标题 + 说明）。
- * 玻璃材质、可点、带回弹，整行都是热区。
- */
-@Composable
-private fun SheetActionRow(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .bouncyClickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Box(
-            Modifier
-                .size(38.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(AmberPrimary.copy(alpha = 0.16f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(icon, contentDescription = null, tint = AmberPrimary, modifier = Modifier.size(20.dp))
-        }
-        Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-            Text(
-                subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        Icon(
-            Icons.Rounded.ChevronRight,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(20.dp)
-        )
     }
 }
 

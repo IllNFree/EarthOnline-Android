@@ -55,6 +55,7 @@ import com.example.earthonline.ui.components.GlassTextField
 import com.example.earthonline.ui.components.MoreMenuActions
 import com.example.earthonline.ui.components.CropShape
 import com.example.earthonline.ui.components.ImageCropperDialog
+import com.example.earthonline.ui.components.GlassTopBar
 import com.example.earthonline.ui.navigation.Screen
 import android.content.Context
 import android.content.Intent
@@ -96,8 +97,8 @@ fun AppearanceRoute(
     val wallpaperAlpha by vm.wallpaperAlpha.collectAsStateWithLifecycle(initialValue = 1f)
     // v1.0.11：壁纸模糊度滑块数据源（默认 0 = 清晰）
     val wallpaperBlur by vm.wallpaperBlur.collectAsStateWithLifecycle(initialValue = 0f)
-    // v1.0.18：卡片背景不透明度滑块数据源（v1.0.6.6 默认 100%）
-    val cardOpacity by vm.cardOpacity.collectAsStateWithLifecycle(initialValue = 1f)
+    // v1.0.18：卡片背景不透明度滑块数据源（vc68 默认 80% 不透明度 = 20% 透明度）
+    val cardOpacity by vm.cardOpacity.collectAsStateWithLifecycle(initialValue = 0.8f)
 
     /* v1.0.6.6 修复「改完保存不了」的另一半：草稿态必须与持久化值双向同步。
        此前 remember(wallpaper) 只在壁纸变化时重建草稿 —— 落盘值回流后草稿不跟随，
@@ -180,20 +181,24 @@ fun AppearanceRoute(
                     }
                     if (wallpaper.isNotBlank()) {
                         // v1.0.19：壁纸不透明度全域 0~100% —— 0% 壁纸完全隐藏（显示纯背景色），100% 完全透出
+                        // vc68：文案改为「透明度」，数值同步**反向**呈现：
+                        // 存储层仍是「不透明度」（1.0 = 壁纸完全不透明），
+                        // 界面上显示的是「透明度」（1 - 不透明度），两者互为补数。
+                        // 这样「透明度 0%」= 壁纸完全不透明（满屏壁纸），语义自洽。
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("壁纸不透明度", style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
+                            Text("壁纸透明度", style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
                             Text(
-                                "${(alphaDraft * 100).roundToInt()}%",
+                                "${((1f - alphaDraft) * 100).roundToInt()}%",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                         Slider(
-                            value = alphaDraft,
+                            value = 1f - alphaDraft,
                             onValueChange = {
-                                alphaDraft = it
+                                alphaDraft = 1f - it
                                 alphaDragging = true
-                                vm.setWallpaperAlpha(it)
+                                vm.setWallpaperAlpha(1f - it)
                             },
                             onValueChangeFinished = { alphaDragging = false },
                             valueRange = 0f..1f
@@ -220,28 +225,32 @@ fun AppearanceRoute(
                     }
                     // v1.0.18/v1.0.19：卡片不透明度滑块（实时预览；不依赖壁纸设置，始终可见。
                     // v1.0.19 起全域 0~100%：0% 完全通透，100% surface 纯色底）
+                    // vc68：文案改为「透明度」，数值同步**反向**呈现（存储层仍是不透明度）：
+                    // 「透明度 0%」= 卡片完全不透明（纯色底，最清晰），
+                    // 「透明度 100%」= 卡片完全通透。默认 20% 透明度 = 80% 不透明度 = 偏实心。
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("卡片不透明度", style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
+                        Text("卡片透明度", style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
                         Text(
-                            "${(cardOpacityDraft * 100).roundToInt()}%",
+                            "${((1f - cardOpacityDraft) * 100).roundToInt()}%",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     Slider(
-                        value = cardOpacityDraft,
+                        value = 1f - cardOpacityDraft,
                         onValueChange = {
-                            cardOpacityDraft = it
+                            cardOpacityDraft = 1f - it
                             cardDragging = true
-                            vm.setCardOpacity(it)
+                            vm.setCardOpacity(1f - it)
                         },
                         onValueChangeFinished = { cardDragging = false },
                         valueRange = 0f..1f
                     )
                     // v1.0.6.6：卡片不透明度与「透出壁纸色相」的取舍说明 —— 100% 纯色底最清晰，
-                    // 想让玻璃透出壁纸颜色就往 70%~90% 调（默认值已按可读性设为 100%）。
+                    // 想让玻璃透出壁纸颜色就往 70%~90% 调。
+                    // vc68：默认值改为 80% 不透明度（= 20% 透明度），偏实心以保证正文对比度。
                     Text(
-                        "100% 为纯色底（最清晰）；想让玻璃透出壁纸色相，可调到 70%~90%。",
+                        "0% 为纯色底（最清晰）；想让玻璃透出壁纸色相，可调到 10%~30%。默认 20%，偏实心以保证正文清晰。",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1138,8 +1147,7 @@ fun AboutRoute(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SettingsTopBar(title: String, onBack: () -> Unit) {
-    TopAppBar(
-        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+    GlassTopBar(
         title = { Text(title) },
         navigationIcon = {
             IconButton(onClick = onBack) {

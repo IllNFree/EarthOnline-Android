@@ -36,6 +36,7 @@ import com.example.earthonline.ui.components.DonutChart
 import com.example.earthonline.ui.components.VicoBarChart
 import com.example.earthonline.ui.components.DonutSlice
 import com.example.earthonline.ui.components.EmptyState
+import com.example.earthonline.ui.components.GlassTopBar
 import com.example.earthonline.ui.navigation.Screen
 import com.example.earthonline.ui.theme.AmberPrimary
 import com.example.earthonline.ui.theme.TextSecondaryLight
@@ -69,8 +70,7 @@ fun DataScreen(vm: StatsViewModel, moreActions: MoreMenuActions) {
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+            GlassTopBar(
                 title = { Text("数据看板") },
                 actions = { }
             )

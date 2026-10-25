@@ -41,6 +41,7 @@ import com.example.earthonline.ui.components.ModuleTints
 import com.example.earthonline.ui.components.MoreMenuActions
 import com.example.earthonline.ui.components.SectionHeader
 import com.example.earthonline.ui.components.UiDimens
+import com.example.earthonline.ui.components.GlassTopBar
 import com.example.earthonline.ui.theme.AmberPrimary
 import com.example.earthonline.util.XpRules
 import androidx.compose.foundation.layout.Spacer
@@ -70,8 +71,7 @@ fun ReportScreen(vm: ReportViewModel, moreActions: MoreMenuActions) {
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+            GlassTopBar(
                 title = { Text("周期报告") },
                 actions = { }
             )

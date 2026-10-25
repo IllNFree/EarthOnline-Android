@@ -4,6 +4,7 @@ import com.example.earthonline.ui.components.bouncyPress
 
 import com.example.earthonline.ui.theme.GlassCard
 import com.example.earthonline.ui.components.GlassTabBar
+import com.example.earthonline.ui.components.GlassTopBar
 import android.content.Intent
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animate
@@ -216,11 +217,18 @@ fun TasksScreen(
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(
+            // vc68：全局统一液态玻璃顶栏 —— 标题与 Tab 同属一块玻璃底板，
+            // 视觉高度与其它二级页严格对齐。
+            GlassTopBar(
                 title = { Text("任务") },
-                // v1.0.11：Header 透明化，与主页一致透出壁纸，去掉顶部悬浮覆盖感
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-                actions = { }
+                tab = {
+                    // 顶层 Tab：日常 / Todo —— 与标题同处一块玻璃，材质与主页同源
+                    GlassTabBar(
+                        labels = listOf("日常", "Todo"),
+                        selectedIndex = if (topTab == "daily") 0 else 1,
+                        onSelect = { topTab = if (it == 0) "daily" else "todo" }
+                    )
+                }
             )
         },
         floatingActionButton = {
@@ -243,12 +251,7 @@ fun TasksScreen(
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            // 顶层 Tab：日常 / Todo —— 对齐背包页「分段控件」样式（v1.0.6.11）
-            // 同一颗玻璃药丸里两段等分按铃，选中段填主题暖色，整体连续控制，切换无分割感。
-            TaskTabToggle(
-                selected = if (topTab == "daily") 0 else 1,
-                onSelect = { topTab = if (it == 0) "daily" else "todo" }
-            )
+            // vc68：顶层 Tab（日常 / Todo）已上移进玻璃顶栏，与标题同属一块玻璃底板。
             // 工具行：概览 + 视图开关 + 全部展开 / 折叠
             // v1.0.5 QA 修复：两个区块拆开判定。
             // 原来整体挂在 flat.isNotEmpty() 上 —— 当某分类唯一任务是「已完成」时，
@@ -602,22 +605,6 @@ fun TasksScreen(
  * 未选中态外包 1.5dp 主题色描边胶囊（提高边框线宽 + 加深颜色），选中态实心琥珀淡底，
  * 让两个 Tab 在任何壁纸 / 背景下都清晰可辨。
  */
-/**
- * 任务页顶层 Tab：与背包页完全一致的「分段控件」样式（v1.0.6.11）。
- * 玻璃药丸容器 + 两段等分按铃，选中段填主题色，未选中透明，切换无割裂感。
- */
-@Composable
-private fun TaskTabToggle(selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
-    // vc67：收敛到全站统一的玻璃分段 Tab —— 外框 Haze 真高斯模糊透出壁纸，
-    // 选中段为半透明琥珀染而非实心色块，材质与主页完全同源。
-    GlassTabBar(
-        labels = listOf("日常", "Todo"),
-        selectedIndex = selected,
-        onSelect = onSelect,
-        modifier = modifier
-    )
-}
-
 /**
  * v1.0.7：Todo 表格视图 —— 表头。列：完成勾选 / 任务 / 截止 / 状态。
  */

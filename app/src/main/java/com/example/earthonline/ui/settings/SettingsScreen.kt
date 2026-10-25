@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.earthonline.ui.components.MoreMenuActions
 import com.example.earthonline.ui.components.SettingsIconButton
+import com.example.earthonline.ui.components.GlassTopBar
 import com.example.earthonline.ui.theme.AppCard
 import com.example.earthonline.ui.navigation.Screen
 import kotlinx.coroutines.launch
@@ -67,8 +68,7 @@ fun SettingsScreen(vm: SettingsViewModel, moreActions: MoreMenuActions) {
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+            GlassTopBar(
                 title = { Text("设置") },
                 actions = { SettingsIconButton(actions = moreActions, visible = false) }
             )

@@ -36,6 +36,7 @@ import com.example.earthonline.ui.components.AnimatedAlertDialog
 import com.example.earthonline.ui.components.EmptyHint
 import com.example.earthonline.ui.components.GlassTextField
 import com.example.earthonline.ui.components.MoreMenuActions
+import com.example.earthonline.ui.components.GlassTopBar
 import com.example.earthonline.ui.theme.AmberPrimary
 import com.example.earthonline.util.nowIso
 import com.example.earthonline.util.uid
@@ -116,8 +117,7 @@ fun AllActivitiesRoute(
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+            GlassTopBar(
                 title = { Text("全部动态（${filtered.size}）") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

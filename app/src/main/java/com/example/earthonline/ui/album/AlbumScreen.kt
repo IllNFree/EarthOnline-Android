@@ -57,6 +57,7 @@ import com.example.earthonline.ui.components.AnimatedAlertDialog
 import com.example.earthonline.ui.components.EmptyState
 import com.example.earthonline.ui.components.GlassTextField
 import com.example.earthonline.ui.components.MoreMenuActions
+import com.example.earthonline.ui.components.GlassTopBar
 import com.example.earthonline.ui.theme.AmberPrimary
 import kotlinx.coroutines.launch
 import java.io.File
@@ -113,8 +114,7 @@ fun AlbumRoute(moreActions: MoreMenuActions, vm: AlbumViewModel = hiltViewModel(
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+            GlassTopBar(
                 title = {
                     // v1.0.6 封板：标题里的相机 Emoji → 圆角矢量图标芯片（与设置页同源）
                     Row(

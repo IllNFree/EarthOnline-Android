@@ -47,6 +47,7 @@ import com.example.earthonline.data.repository.RecycleBinRepository.Entry
 import com.example.earthonline.ui.components.EmptyState
 import com.example.earthonline.ui.components.UiDimens
 import com.example.earthonline.ui.components.AnimatedAlertDialog
+import com.example.earthonline.ui.components.GlassTopBar
 import com.example.earthonline.ui.theme.AmberPrimary
 
 /**
@@ -66,8 +67,7 @@ fun RecycleBinRoute(
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+            GlassTopBar(
                 title = { Text("回收站") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

@@ -209,7 +209,17 @@ android {
         //    滚动方向经 derivedStateOf 派生且只读进 graphicsLayer —— 滑动全程满血且零重组
         // ⑥ 新增成就：cover_first / cover_ten（自定义封面，Android 专属，登记为 androidOnly）
         // ⑦ 更新日志补全 1.9.0 段，消除 1.8.0 → 2.0.0 的版本号跳跃
-        versionCode = 67
+        // versionCode 68 = v2.0.0（根治卡顿批 vc68）：
+        // ① 笔记页交互重构：FAB 废除 ModalBottomSheet 改居中固定大小 Dialog（对齐背包页风格）；
+        //    点击直接进新建笔记流程（标题 + 分类单选）；「新建分类 / 管理分类」收进右上角图标按钮
+        // ② 全局顶部 UI 统一：新增 GlassTopBar 公共组件（标题行 + Tab 行同属一块 Haze 液态玻璃底板，
+        //    顶部与屏幕齐平、底部两角圆角），16 个二级页全部切换，消除「壁纸直接透出显得割裂」
+        // ③ 设置文案与默认值：「壁纸不透明度」→「壁纸透明度」、「卡片不透明度」→「卡片透明度」，
+        //    数值按透明度语义反向呈现；卡片背景默认 80% 不透明度（20% 透明度），首开偏实心保证文字清晰
+        // ④ 性能：主页堆叠卡 pagerState.currentPageOffsetFraction 原在组合期读取导致逐帧重组，
+        //    改为只在 graphicsLayer 内读取（读进绘制相位）；HomeViewModel 状态映射收敛；
+        //    appearanceTuned 成就改为 cardOpacityTouched（用户是否真的调过）语义，不被新默认值误触发
+        versionCode = 68
         versionName = "2.0.0"
         vectorDrawables { useSupportLibrary = true }
         // 高德 SDK 需要原生 so 库，按需裁剪 ABI（阶段3 接入地图前可放行全部）

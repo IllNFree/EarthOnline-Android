@@ -64,8 +64,11 @@ val LocalWallpaperPath = compositionLocalOf<String?> { null }
  * v1.0.18：卡片背景不透明度（设置 → 外观滑块，DataStore 持久化）。
  * vc64 语义微调：它现在是「玻璃底色浓度」—— 1.0 = 底色最接近纯 surface（玻璃感最克制、最清晰），
  * 数值越低玻璃越通透（模糊背景透出越多）。仍只作用于 [GlassCard]。
+ *
+ * vc68：默认值 1.0 → **0.8（80% 不透明度 = 20% 透明度）** ——
+ * 首次打开时卡片底色偏实心，正文对比度优先。
  */
-val LocalCardOpacity = compositionLocalOf { 1f }
+val LocalCardOpacity = compositionLocalOf { 0.8f }
 
 /**
  * vc64：全局 Haze 状态 —— 由 [MainScaffold] 在壁纸层创建并注入，全站玻璃共享同一份取景。

@@ -49,6 +49,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.example.earthonline.data.steam.SteamGame
 import com.example.earthonline.ui.components.bouncyPress
+import com.example.earthonline.ui.components.GlassTopBar
 import com.example.earthonline.ui.design.EODialog
 import com.example.earthonline.ui.design.EOConfirmDialog
 import com.example.earthonline.ui.design.EOEmptyState
@@ -116,8 +117,7 @@ fun SteamLibraryRoute(onBack: () -> Unit) {
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+            GlassTopBar(
                 title = { Text("我的游戏库") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

@@ -55,7 +55,11 @@ class SettingsDataStore @Inject constructor(@ApplicationContext private val cont
         val WALLPAPER_ALPHA = floatPreferencesKey("earth_wallpaper_alpha")
         /** v1.0.11：壁纸模糊度（dp，0~24） */
         val WALLPAPER_BLUR = floatPreferencesKey("earth_wallpaper_blur")
-        /** v1.0.18：卡片背景不透明度（0.40~0.95，仅作用于全局 GlassCard） */
+        /**
+         * v1.0.18：卡片背景不透明度（0.40~0.95，仅作用于全局 GlassCard）
+         * vc68：默认值 1.0 → **0.8（80% 不透明度 = 20% 透明度）** ——
+         * 用户首次打开时卡片底色偏实心，正文对比度优先（玻璃感由边框 / 高光承担）。
+         */
         val CARD_OPACITY = floatPreferencesKey("earth_card_opacity")
         val NOTIFY = booleanPreferencesKey("earth_notify")
         val AI_CONFIG = stringPreferencesKey("ai_config")
@@ -172,10 +176,21 @@ class SettingsDataStore @Inject constructor(@ApplicationContext private val cont
     val wallpaperBlur: Flow<Float> = ds.data.map { (it[WALLPAPER_BLUR] ?: 0f).coerceIn(0f, 24f) }
 
     /**
-     * 卡片背景不透明度（0.0~1.0）。v1.0.6.6 默认值 0.74 → **1.0（100%）**：真机反馈
-     * 默认半透在花壁纸上正文发虚，可读性优先；想透出壁纸色相的用户自行下调（建议 70%~90%）。
+     * 卡片背景不透明度（0.0~1.0）。
+     * vc68：默认值 1.0 → **0.8（80% 不透明度 = 20% 透明度）** —— 新装用户首次打开时
+     * 卡片底色偏实心、正文对比度优先；想更通透的用户自行下调滑块。
      */
-    val cardOpacity: Flow<Float> = ds.data.map { (it[CARD_OPACITY] ?: 1f).coerceIn(0f, 1f) }
+    val cardOpacity: Flow<Float> = ds.data.map { (it[CARD_OPACITY] ?: 0.8f).coerceIn(0f, 1f) }
+
+    /**
+     * vc68：卡片不透明度是否**被用户改过**（键存在即视为改过）。
+     *
+     * 为什么要单独一个流：卡片默认值从 1.0 调到了 0.8，若成就仍按
+     * 「cardOpacity != 1f」判定，则所有新装用户一进游戏就白拿
+     * 「手感调校师」成就 —— 必须改成"键是否存在"的判定口径
+     * （与 iOS 端 `defaults.object(forKey:) != nil` 完全一致）。
+     */
+    val cardOpacityTouched: Flow<Boolean> = ds.data.map { it.contains(CARD_OPACITY) }
     val notify: Flow<Boolean> = ds.data.map { it[NOTIFY] ?: false }
     val aiConfig: Flow<String> = ds.data.map { it[AI_CONFIG] ?: "" }
     /** 本地模型（离线推理）配置 JSON */

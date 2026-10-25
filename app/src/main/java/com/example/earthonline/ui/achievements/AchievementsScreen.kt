@@ -33,6 +33,7 @@ import com.example.earthonline.ui.components.MeterBar
 import com.example.earthonline.ui.components.MoreMenuActions
 import com.example.earthonline.ui.components.SectionHeader
 import com.example.earthonline.ui.components.UiDimens
+import com.example.earthonline.ui.components.GlassTopBar
 import com.example.earthonline.ui.theme.AmberPrimary
 
 /** 成就页（对应 HTML achievements 页）：分类筛选 + 分组展示 + 进度 */
@@ -66,8 +67,7 @@ fun AchievementsScreen(vm: AchievementViewModel, moreActions: MoreMenuActions) {
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+            GlassTopBar(
                 title = { Text("成就") },
                 actions = { }
             )

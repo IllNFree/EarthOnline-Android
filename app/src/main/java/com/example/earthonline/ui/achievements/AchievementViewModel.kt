@@ -130,7 +130,11 @@ class AchievementViewModel @Inject constructor(
                 settings.memoryPhotosJson,
                 // v1.0.6：新功能成就数据源（AI 中枢归档次数 / 卡片·壁纸不透明度是否被调过）
                 activityRepo.observeRecent(),
-                settings.cardOpacity,
+                // vc68：卡片不透明度**是否被用户改过**（键存在即算改过）。
+                // 不能用「值 != 默认值」判定 —— 卡片默认值已从 1.0 调到 0.8，
+                // 那样判会让所有新装用户一进游戏就白拿「手感调校师」。
+                // 口径与 iOS 端（defaults 出现该键即算改过）完全一致。
+                settings.cardOpacityTouched,
                 settings.wallpaperAlpha
             )
             combine(flows) { arr ->
@@ -148,7 +152,8 @@ class AchievementViewModel @Inject constructor(
                 @Suppress("UNCHECKED_CAST")
                 val activities = arr[10] as? List<ActivityEntity> ?: emptyList()
                 // v1.0.6.6：外观默认值收敛为「卡片 100% / 壁纸 100%」
-                val cardOpacity = arr[11] as? Float ?: 1f
+                // vc68：卡片默认 80% 不透明度；「是否调过」改用键存在性判定
+                val cardOpacityTouched = arr[11] as? Boolean ?: false
                 val wallpaperAlpha = arr[12] as? Float ?: 1f
 
                 val life = lifeStatsOf(profile?.birthDate)
@@ -190,8 +195,8 @@ class AchievementViewModel @Inject constructor(
                     // —— v1.0.6 新功能成就字段 ——
                     aiHubCount = activities.count { it.title.startsWith("AI 快捷") },
                     longMemos = memos.count { it.text.length >= 300 },
-                    // 卡片默认 1.0 / 壁纸默认 1.0：任一被改动即视为「调校过手感」
-                    appearanceTuned = if (cardOpacity != 1f || wallpaperAlpha != 1f) 1 else 0,
+                    // 卡片 / 壁纸不透明度是否被用户调过（0 / 1）
+                    appearanceTuned = if (cardOpacityTouched || wallpaperAlpha != 1f) 1 else 0,
                     // —— v2.0.0：自定义封面（Android 端专属）——
                     customCovers = items.count { !it.coverPath.isNullOrBlank() } +
                         collections.count { !it.coverPath.isNullOrBlank() }

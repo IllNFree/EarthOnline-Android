@@ -144,8 +144,8 @@ fun MainScaffold(
     // v1.0.11：壁纸模糊度（设置→外观 滑块，0=清晰，24=重度毛玻璃）
     val wallpaperBlur by settingsVm.wallpaperBlur.collectAsStateWithLifecycle(initialValue = 0f)
     // v1.0.18：卡片背景不透明度（设置→外观 滑块，全局 GlassCard 生效）
-    // v1.0.6.6：默认 100%（与 DataStore / Glass.kt 默认一致）
-    val cardOpacity by settingsVm.cardOpacity.collectAsStateWithLifecycle(initialValue = 1f)
+    // vc68：默认 80% 不透明度（= 20% 透明度）—— 卡片底色偏实心，正文对比度优先
+    val cardOpacity by settingsVm.cardOpacity.collectAsStateWithLifecycle(initialValue = 0.8f)
     val achSound by settingsVm.achSound.collectAsStateWithLifecycle(initialValue = true)
     // v1.0.6：当日轮换壁纸（含相册筛选）由 ViewModel 统一计算，避免组合层做 JSON 解析
     val effectiveWallpaper by settingsVm.effectiveWallpaper.collectAsStateWithLifecycle(initialValue = "")

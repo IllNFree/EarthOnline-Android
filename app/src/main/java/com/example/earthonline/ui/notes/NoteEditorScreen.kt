@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.earthonline.ui.components.GlassTextField
+import com.example.earthonline.ui.components.GlassTopBar
 import com.example.earthonline.ui.components.MoreMenuActions
 import com.example.earthonline.ui.components.UiDimens
 import com.example.earthonline.ui.theme.AmberPrimary
@@ -677,8 +678,9 @@ fun NoteEditorScreen(
         contentWindowInsets = WindowInsets(0),
         topBar = {
             Column {
-                TopAppBar(
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+                // vc68：全局统一液态玻璃顶栏 —— 标题与下方格式工具条同属一块玻璃底板，
+                // 与其它二级页的顶部区域视觉高度一致。
+                GlassTopBar(
                     title = { Text(if (id.isBlank()) "新建笔记" else "编辑笔记") },
                     navigationIcon = {
                         IconButton(onClick = { save() }) {
@@ -696,43 +698,45 @@ fun NoteEditorScreen(
                                 )
                             }
                         }
-                    }
-                )
-                EditorFormatBar(
-                    modifier = Modifier,
-                    canUndo = histIndex > 0,
-                    canRedo = histIndex >= 0 && histIndex < history.lastIndex,
-                    boldActive = boldActive,
-                    italicActive = italicActive,
-                    underlineActive = underlineActive,
-                    headingActive = headingActive,
-                    bulletActive = curKind == BlockKind.BULLET,
-                    orderedActive = curKind == BlockKind.ORDERED,
-                    todoActive = curKind == BlockKind.TASK,
-                    onUndo = { undo() },
-                    onRedo = { redo() },
-                    onBold = { toggleSpan(boldBase) { it.fontWeight == FontWeight.Bold || it.shadow != null } },
-                    onItalic = { toggleSpan(MD_ITALIC) { it.fontStyle == FontStyle.Italic } },
-                    onUnderline = { toggleSpan(MD_UNDER) { it.textDecoration == TextDecoration.Underline } },
-                    onHeading = {
-                        val i = focusedIndex.coerceIn(0, blocks.lastIndex.coerceAtLeast(0))
-                        val b = blocks[i]
-                        blocks[i] = b.copy(kind = if (b.kind == BlockKind.H1) BlockKind.TEXT else BlockKind.H1)
-                        pendingFocus = b.id to b.value.selection.min
-                        pushHistory()
                     },
-                    // vc64：待办 = 当前块转成「任务块」（行首真实 Checkbox），再点转回正文
-                    onTodo = { toggleTaskBlock() },
-                    onBullet = { setKind(BlockKind.BULLET) },
-                    onOrdered = { setKind(BlockKind.ORDERED) },
-                    onImage = { pickImage() },
-                    onFile = { pickFile.launch("*/*") },
-                    onFontSize = {
-                        bodyScale = when (bodyScale) {
-                            1f -> 1.15f
-                            1.15f -> 1.3f
-                            else -> 1f
-                        }
+                    tab = {
+                        EditorFormatBar(
+                            modifier = Modifier,
+                            canUndo = histIndex > 0,
+                            canRedo = histIndex >= 0 && histIndex < history.lastIndex,
+                            boldActive = boldActive,
+                            italicActive = italicActive,
+                            underlineActive = underlineActive,
+                            headingActive = headingActive,
+                            bulletActive = curKind == BlockKind.BULLET,
+                            orderedActive = curKind == BlockKind.ORDERED,
+                            todoActive = curKind == BlockKind.TASK,
+                            onUndo = { undo() },
+                            onRedo = { redo() },
+                            onBold = { toggleSpan(boldBase) { it.fontWeight == FontWeight.Bold || it.shadow != null } },
+                            onItalic = { toggleSpan(MD_ITALIC) { it.fontStyle == FontStyle.Italic } },
+                            onUnderline = { toggleSpan(MD_UNDER) { it.textDecoration == TextDecoration.Underline } },
+                            onHeading = {
+                                val i = focusedIndex.coerceIn(0, blocks.lastIndex.coerceAtLeast(0))
+                                val b = blocks[i]
+                                blocks[i] = b.copy(kind = if (b.kind == BlockKind.H1) BlockKind.TEXT else BlockKind.H1)
+                                pendingFocus = b.id to b.value.selection.min
+                                pushHistory()
+                            },
+                            // vc64：待办 = 当前块转成「任务块」（行首真实 Checkbox），再点转回正文
+                            onTodo = { toggleTaskBlock() },
+                            onBullet = { setKind(BlockKind.BULLET) },
+                            onOrdered = { setKind(BlockKind.ORDERED) },
+                            onImage = { pickImage() },
+                            onFile = { pickFile.launch("*/*") },
+                            onFontSize = {
+                                bodyScale = when (bodyScale) {
+                                    1f -> 1.15f
+                                    1.15f -> 1.3f
+                                    else -> 1f
+                                }
+                            }
+                        )
                     }
                 )
             }
@@ -1101,36 +1105,33 @@ private fun EditorFormatBar(
     onFile: () -> Unit,
     onFontSize: () -> Unit
 ) {
-    GlassSurface(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp),
-        showBorder = true
+    // vc68：格式工具条改为**半透明内衬**（不再是独立 GlassSurface）——
+    // 它现在嵌在 [GlassTopBar] 的玻璃底板内部，若再套一层玻璃就是"玻璃套玻璃"：
+    // 两层独立模糊叠在一起边界发灰、GPU 开销翻倍。
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 8.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            ToolIcon(Icons.Rounded.Undo, "撤销", canUndo, onClick = onUndo)
-            ToolIcon(Icons.Rounded.Redo, "重做", canRedo, onClick = onRedo)
-            ToolDivider()
-            ToolIcon(Icons.Rounded.FormatBold, "加粗", true, boldActive, onBold)
-            ToolIcon(Icons.Rounded.FormatItalic, "斜体", true, italicActive, onItalic)
-            ToolIcon(Icons.Rounded.FormatUnderlined, "下划线", true, underlineActive, onUnderline)
-            ToolIcon(Icons.Rounded.Title, "标题", true, headingActive, onHeading)
-            ToolDivider()
-            ToolIcon(Icons.Rounded.CheckBox, "任务清单（当前行变待办）", true, todoActive, onTodo)
-            ToolIcon(Icons.Rounded.FormatListBulleted, "无序列表", true, bulletActive, onBullet)
-            ToolIcon(Icons.Rounded.FormatListNumbered, "有序列表", true, orderedActive, onOrdered)
-            ToolDivider()
-            ToolIcon(Icons.Rounded.Image, "插入图片", true, onClick = onImage)
-            ToolIcon(Icons.Rounded.AttachFile, "插入附件", true, onClick = onFile)
-            ToolDivider()
-            ToolText("A±", onFontSize)
-        }
+        ToolIcon(Icons.Rounded.Undo, "撤销", canUndo, onClick = onUndo)
+        ToolIcon(Icons.Rounded.Redo, "重做", canRedo, onClick = onRedo)
+        ToolDivider()
+        ToolIcon(Icons.Rounded.FormatBold, "加粗", true, boldActive, onBold)
+        ToolIcon(Icons.Rounded.FormatItalic, "斜体", true, italicActive, onItalic)
+        ToolIcon(Icons.Rounded.FormatUnderlined, "下划线", true, underlineActive, onUnderline)
+        ToolIcon(Icons.Rounded.Title, "标题", true, headingActive, onHeading)
+        ToolDivider()
+        ToolIcon(Icons.Rounded.CheckBox, "任务清单（当前行变待办）", true, todoActive, onTodo)
+        ToolIcon(Icons.Rounded.FormatListBulleted, "无序列表", true, bulletActive, onBullet)
+        ToolIcon(Icons.Rounded.FormatListNumbered, "有序列表", true, orderedActive, onOrdered)
+        ToolDivider()
+        ToolIcon(Icons.Rounded.Image, "插入图片", true, onClick = onImage)
+        ToolIcon(Icons.Rounded.AttachFile, "插入附件", true, onClick = onFile)
+        ToolDivider()
+        ToolText("A±", onFontSize)
     }
 }
 

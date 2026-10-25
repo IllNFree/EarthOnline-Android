@@ -20,19 +20,24 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.earthonline.ui.theme.AmberPrimary
-import com.example.earthonline.ui.theme.GlassSurface
 
 /**
- * vc67：**全局统一的液态玻璃分段 Tab**（主页口径）。
+ * vc68：**全局统一的液态玻璃分段 Tab**。
  *
- * ## 为什么要抽成公共组件
- * 此前任务页「日常 / Todo」与背包页「物品 / 收藏」各写了一份胶囊分段控件，
- * 两者外框虽已是玻璃，但**选中段仍是实心 `primary` 色块** ——
- * 实心色块会把身后的壁纸「盖死」，于是二级页顶部与主页的通透感割裂。
- * 现在统一收敛到本组件：**外框走 [GlassSurface]（Haze 真高斯模糊，透出壁纸），
- * 选中段改为半透明琥珀染 + 细描边**，选中态依然清晰，但**不再有实心背景**。
+ * ## 定位与形态
+ * 此前本组件自带一层 [com.example.earthonline.ui.theme.GlassSurface] 外壳；
+ * vc68 起它改为**嵌入在 [GlassTopBar] 的玻璃底板内部**使用 ——
+ * 外层已经是一整块 Haze 液态玻璃，内部再套一层玻璃会造成「玻璃套玻璃」
+ * （两层独立模糊、边界出现灰缝、GPU 开销翻倍）。
  *
- * 全站二级页顶部 Tab 一律用这一个，保证「主页 ↔ 二级页」材质完全同源。
+ * 因此现在的形态是：
+ *  - 外壳 = [GlassTopBar] 的整块玻璃底板（标题 + Tab 同属一块玻璃）；
+ *  - 本组件 = 玻璃底板上的一层**半透明内衬**（极淡 surface 染 + 1dp 描边），
+ *    选中段为半透明琥珀染 + 描边 —— 选中态依旧一眼可辨，但不再有实心色块。
+ *
+ * ## 统一规格
+ *  - 段高固定 38dp、圆角 16dp、段间 4dp —— 全站二级页 Tab 行高度完全一致；
+ *  - 文字单行不换行（`softWrap = false`），窄屏下靠横向留白兜底，绝不挤成竖排。
  *
  * @param labels Tab 文案。
  * @param selectedIndex 当前选中下标。
@@ -44,10 +49,9 @@ fun GlassTabBar(
     selectedIndex: Int,
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+    contentPadding: PaddingValues = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
 ) {
-    GlassSurface(
-        shape = RoundedCornerShape(20.dp),
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .padding(contentPadding)
@@ -55,6 +59,11 @@ fun GlassTabBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .clip(RoundedCornerShape(18.dp))
+                // 内衬：极淡的 surface 染 + 1dp 描边 —— 在玻璃底板上给出"容器"轮廓，
+                // 但自身不再做一次模糊（避免玻璃套玻璃的双重开销与灰缝）
+                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.16f))
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f), RoundedCornerShape(18.dp))
                 .padding(4.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
@@ -70,7 +79,7 @@ fun GlassTabBar(
 }
 
 /**
- * vc67：分段控件的**单段**。选中态 = 半透明琥珀染 + 1dp 描边（不遮挡壁纸），
+ * vc68：分段控件的**单段**。选中态 = 半透明琥珀染 + 1dp 描边（不遮挡壁纸），
  * 未选中态 = 完全透明。
  */
 @Composable

@@ -54,10 +54,10 @@ object AppInfo {
     /**
      * 发布 Release 的 GitHub 仓库（owner / repo）。
      * 更新检查只读 public 的 releases/latest 接口：
-     *   https://api.github.com/repos/FreeMentalIllness/Earth-Online/releases/latest
+     *   https://api.github.com/repos/IllNFree/EarthOnline-Android/releases/latest
      * 换仓库时改这两个常量即可；APK 直链取 assets[0].browser_download_url。
      */
-    const val repoOwner = "FreeMentalIllness"
+    const val repoOwner = "IllNFree"
     /** v1.0.6 修正：Release 实际发布在 EarthOnline-Android，此前写成 Earth-Online（该仓库没有任何 Release），
      *  导致「检查更新」永远拿不到版本号与 APK 直链 —— 这是应用内更新下载失败的直接原因之一。 */
     const val repoName = "EarthOnline-Android"

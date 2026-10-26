@@ -1,0 +1,58 @@
+# git-cliff 配置 —— EarthOnline 四仓库统一（Keep a Changelog + Conventional Commits）
+# 方案乙落地：后续打 tag 时由 .github/workflows/release.yml 自动生成 CHANGELOG 与 GitHub Release。
+
+[changelog]
+header = """
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Conventional Commits](https://conventionalcommits.org/).
+"""
+body = """
+{% if version %}\
+    ## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
+{% else %}\
+    ## [unreleased]
+{% endif %}\
+{% for group, commits in commits | group_by(attribute="group") %}
+    ### {{ group | upper_first }}
+    {% for commit in commits %}
+        - {% if commit.scope %}*({{ commit.scope }})* {% endif %}\
+            {{ commit.message | upper_first }}\
+    {% endfor %}
+{% endfor %}
+
+"""
+trim = true
+footer = ""
+
+[git]
+conventional_commits = true
+# 不丢弃不规范 commit：无法归类的一律进入 "Other" 兜底，而非从 changelog 消失。
+filter_unconventional = false
+commit_parsers = [
+    { message = "^feat", group = "Added" },
+    { message = "^fix", group = "Fixed" },
+    { message = "^perf", group = "Performance" },
+    { message = "^docs", group = "Documentation" },
+    { message = "^refactor", group = "Changed" },
+    { message = "^style", group = "Changed" },
+    { message = "^test", group = "Changed" },
+    { message = "BREAKING CHANGE", group = "Breaking Changes" },
+    # 排除 merge commit 与 Dependabot / 依赖相关提交（避免污染 changelog）
+    { message = "^Merge", skip = true },
+    { message = "dependabot", skip = true },
+    { message = "^chore\\(deps", skip = true },
+    { message = "^build\\(deps", skip = true },
+    # 兜底：其余一律进入 Other
+    { message = ".*", group = "Other" },
+]
+protect_breaking_commits = false
+filter_commits = false
+tag_pattern = "v[0-9]*"
+skip_tags = ""
+ignore_tags = ""
+topo_order = false
+sort_commits = "oldest"
